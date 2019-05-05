@@ -46,6 +46,7 @@ class ShieldMiddleware implements HttpKernelInterface {
   public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = TRUE) {
     $config = $this->configFactory->get('shield.settings');
     $allow_cli = $config->get('allow_cli');
+    $user = NULL;
 
     switch ($config->get('credential_provider')) {
       case 'shield':
