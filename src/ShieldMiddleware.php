@@ -109,7 +109,7 @@ class ShieldMiddleware implements HttpKernelInterface {
       elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
         list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
       }
-      $authenticated = isset($input_user) && $input_user === $user && Crypt::hashEquals($pass, $input_pass);
+      $authenticated = isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass);
 
       if ($in_whitelist || $authenticated) {
         return $this->httpKernel->handle($request, $type, $catch);
