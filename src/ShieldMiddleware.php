@@ -2,7 +2,6 @@
 
 namespace Drupal\shield;
 
-use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Path\PathMatcherInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
