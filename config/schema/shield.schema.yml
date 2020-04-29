@@ -24,6 +24,9 @@ shield.settings:
     whitelist:
       type: string
       label: 'Bypass shield based on user IP'
+    domains:
+      type: text
+      label: 'Bypass shield based on domain name'
 
 shield.credentials.shield:
   type: mapping

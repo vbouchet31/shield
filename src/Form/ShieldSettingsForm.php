@@ -69,6 +69,14 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1")
     );
 
+    $form['general']['shield_domains'] = array(
+      '#type' => 'textarea',
+      '#title' => $this->t('Whitelist Domains'),
+      '#description' => $this->t('Enter list of domain host names for which shield should not be shown, one per line.'),
+      '#default_value' => $shield_config->get('domains'),
+      '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
+    );
+
     $form['credentials'] = array(
       '#id' => 'credentials',
       '#type' => 'details',
@@ -177,6 +185,7 @@ class ShieldSettingsForm extends ConfigFormBase {
       ->set('allow_cli', $form_state->getValue(['general', 'shield_allow_cli']))
       ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
       ->set('whitelist', $form_state->getValue(['general', 'whitelist']))
+      ->set('domains', $form_state->getValue(['general', 'shield_domains']))
       ->set('print', $form_state->getValue('shield_print'))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([

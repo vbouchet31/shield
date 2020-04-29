@@ -4,6 +4,7 @@ namespace Drupal\shield;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Path\PathMatcherInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,16 +30,26 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $configFactory;
 
   /**
+   * The path matcher.
+   *
+   * @var \Drupal\Core\Path\PathMatcherInterface
+   */
+  protected $pathMatcher;
+
+  /**
    * Constructs a BanMiddleware object.
    *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
    *   The decorated kernel.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
+   * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
+   *   The path matcher service.
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, PathMatcherInterface $path_matcher) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
+    $this->pathMatcher = $path_matcher;
   }
 
   /**
@@ -98,6 +109,14 @@ class ShieldMiddleware implements HttpKernelInterface {
         $in_whitelist = IpUtils::checkIp($request->getClientIp(), $whitelist);
       }
 
+      // Check if site domain is in whitelist.
+      $allow_domain = FALSE;
+      if ($domains = $config->get('domains')) {
+        if (!empty($domains)) {
+          $allow_domain = $this->pathMatcher->matchPath($request->getHost(), $domains);
+        }
+      }
+
       // Check if user has provided credentials.
       if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
         $input_user = $request->server->get('PHP_AUTH_USER');
@@ -111,7 +130,7 @@ class ShieldMiddleware implements HttpKernelInterface {
       }
       $authenticated = isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass);
 
-      if ($in_whitelist || $authenticated) {
+      if ($in_whitelist || $authenticated || $allow_domain) {
         return $this->httpKernel->handle($request, $type, $catch);
       }
     }
