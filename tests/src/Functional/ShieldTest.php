@@ -26,6 +26,15 @@ class ShieldTest extends BrowserTestBase {
   protected function setUp() {
     parent::setUp();
 
+    // Do basic setup to prepare shield operating but disable it.
+    $this->config('shield.settings')
+      ->set('shield_enable', FALSE)
+      ->set('credential_provider', 'shield')
+      ->set('credentials.shield.user', 'user')
+      ->set('credentials.shield.pass', 'password')
+      ->set('print', 'Hello world!')
+      ->save();
+
     // Generate a user_password key.
     Key::create([
       'id' => 'shield_test',
@@ -41,7 +50,67 @@ class ShieldTest extends BrowserTestBase {
   }
 
   /**
+   * Validate shield_enable config display or not the http auth prompt.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldEnable() {
+    // Assert we are not presented with a http auth prompt.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(200);
+
+    // Configure shield so it is enabled.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    // Assert we are presented with a http auth prompt.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(401);
+  }
+
+  /**
+   * Validate the authentication message reflects.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testAuthMessage() {
+    // Configure shield so it is enabled.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    // Assert the prompted message is the configured one.
+    $this->drupalGet('user');
+    $this->assertSession()->responseHeaderContains('WWW-Authenticate', 'Basic realm="Hello world!"');
+
+    // Update the shield message.
+    $this->config('shield.settings')->set('print', 'Hello entire world!')->save();
+
+    // Assert the prompted message is the update one.
+    $this->drupalGet('user');
+    $this->assertSession()->responseHeaderContains('WWW-Authenticate', 'Basic realm="Hello entire world!"');
+  }
+
+  /**
+   * Validate the Shield credential provider.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldCred() {
+    // Configure shield so it is enabled.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    // Assert we are presented with a http auth prompt.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(401);
+
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
+    $this->assertSession()->statusCodeEquals(200);
+  }
+
+  /**
    * Test shield module configuration with key module.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   * @throws \Behat\Mink\Exception\ResponseTextException
+   * @throws \Drupal\Core\Entity\EntityStorageException
    */
   public function testShieldKey() {
     $path_to_test = 'user';
@@ -56,6 +125,7 @@ class ShieldTest extends BrowserTestBase {
 
     // Setup shield module using the shield_test key.
     $shield_config = \Drupal::configFactory()->getEditable('shield.settings');
+    $shield_config->set('shield_enable', TRUE);
     $shield_config->set('credential_provider', 'multikey');
     $shield_config->set('credentials.multikey.user_pass_key', 'shield_test');
     $shield_config->set('print', 'Hello world!');
