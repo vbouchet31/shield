@@ -2,14 +2,58 @@
 
 namespace Drupal\shield\Form;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Render\Markup;
+use Drupal\key\Plugin\KeyPluginManager;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configure site information settings for this site.
  */
 class ShieldSettingsForm extends ConfigFormBase {
+
+  /**
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * The key type manager, if exists.
+   *
+   * @var \Drupal\key\Plugin\KeyPluginManager|null
+   */
+  protected $keyTypeManager;
+
+  /**
+   * ShieldSettingsForm constructor.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   * @param \Drupal\key\Plugin\KeyPluginManager|null $keyTypeManager
+   */
+  public function __construct(ConfigFactoryInterface $config_factory, ModuleHandlerInterface $moduleHandler, KeyPluginManager $keyTypeManager = NULL) {
+    parent::__construct($config_factory);
+    $this->moduleHandler = $moduleHandler;
+    $this->keyTypeManager = $keyTypeManager;
+  }
+
+  /**
+   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+   *
+   * @return \Drupal\Core\Form\ConfigFormBase|\Drupal\shield\Form\ShieldSettingsForm|static
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('module_handler'),
+      $container->get('plugin.manager.key.key_type', ContainerInterface::NULL_ON_INVALID_REFERENCE)
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -107,13 +151,11 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#id' => 'credentials_configuration',
     ];
 
-    if (\Drupal::moduleHandler()->moduleExists('key')) {
-      $form['credentials']['credential_provider']['#options']['key'] = 'Key Module';
+    if ($this->keyTypeManager) {
+      $form['credentials']['credential_provider']['#options']['key'] = $this->t('Key Module');
 
-      /** @var \Drupal\key\Plugin\KeyPluginManager $key_type */
-      $key_type = \Drupal::service('plugin.manager.key.key_type');
-      if ($key_type->hasDefinition('user_password')) {
-        $form['credentials']['credential_provider']['#options']['multikey'] = 'Key Module (user/password)';
+      if ($this->keyTypeManager->hasDefinition('user_password')) {
+        $form['credentials']['credential_provider']['#options']['multikey'] = $this->t('Key Module (user/password)');
       }
     }
 
@@ -171,7 +213,6 @@ class ShieldSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-
     $shield_config = $this->config('shield.settings');
     $credential_provider = $form_state->getValue(['credentials', 'credential_provider']);
     $shield_config

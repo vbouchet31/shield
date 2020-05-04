@@ -3,6 +3,7 @@
 namespace Drupal\shield;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,6 +30,13 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $configFactory;
 
   /**
+   * The EntityTypeManager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * The path matcher.
    *
    * @var \Drupal\Core\Path\PathMatcherInterface
@@ -42,12 +50,15 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   The decorated kernel.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The EntityTypeManager service.
    * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
    *   The path matcher service.
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, PathMatcherInterface $path_matcher) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
+    $this->entityTypeManager = $entity_type_manager;
     $this->pathMatcher = $path_matcher;
   }
 
@@ -69,7 +80,7 @@ class ShieldMiddleware implements HttpKernelInterface {
         $user = $config->get('credentials.key.user');
 
         /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
-        $storage = \Drupal::entityTypeManager()->getStorage('key');
+        $storage = $this->entityTypeManager->getStorage('key');
         /** @var \Drupal\key\KeyInterface $pass_key */
         $pass_key = $storage->load($config->get('credentials.key.pass_key'));
         if ($pass_key) {
@@ -79,7 +90,7 @@ class ShieldMiddleware implements HttpKernelInterface {
 
       case 'multikey':
         /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
-        $storage = \Drupal::entityTypeManager()->getStorage('key');
+        $storage = $this->entityTypeManager->getStorage('key');
         /** @var \Drupal\key\KeyInterface $user_pass_key */
         $user_pass_key = $storage->load($config->get('credentials.multikey.user_pass_key'));
         if ($user_pass_key) {
