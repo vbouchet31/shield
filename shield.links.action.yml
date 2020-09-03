@@ -1,0 +1,5 @@
+entity.shield_constraint.add_form:
+  route_name: 'entity.shield_policy.add'
+  title: 'Add Policy'
+  appears_on:
+    - entity.shield_policy.collection

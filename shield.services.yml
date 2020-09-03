@@ -1,0 +1,7 @@
+services:
+  plugin.manager.shield.shield_constraint:
+    class: Drupal\shield\ShieldConstraintManager
+    parent: default_plugin_manager
+  plugin.manager.shield.shield_authenticator:
+    class: Drupal\shield\ShieldAuthenticatorManager
+    parent: default_plugin_manager

@@ -1,0 +1,79 @@
+entity.shield_policy.collection:
+  path: '/admin/config/system/shield/policies'
+  defaults:
+    _entity_list: 'shield_policy'
+    _title: 'Shield policies'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.shield_policy.add:
+  path: '/admin/config/system/shield/policy/add'
+  defaults:
+    _entity_form: shield_policy.add
+    _title: 'Add Shield policy'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.shield_policy.edit_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/edit'
+  defaults:
+    _entity_form: shield_policy.edit
+    _title: 'Edit policy'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.shield_policy.delete_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/delete'
+  defaults:
+    _entity_form: shield_policy.delete
+    _title: 'Delete policy'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.constraint_add_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/constraints/{constraint}'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldConstraintAddForm'
+    _title: 'Add constraint'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.constraint_edit_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/constraints/{constraint}'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldConstraintEditForm'
+    _title: 'Edit constraint'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.constraint_delete_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/constraints/{constraint}/delete'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldConstraintDeleteForm'
+    _title: 'Delete constraint'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.authenticator_add_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/authenticator/{authenticator}'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldAuthenticatorAddForm'
+    _title: 'Add authentication method'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.authenticator_edit_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/authenticator/{authenticator}'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldAuthenticatorEditForm'
+    _title: 'Edit authentication method'
+  requirements:
+    _permission: 'administer site configuration'
+
+shield.authenticator_delete_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/authenticator/{authenticator}/delete'
+  defaults:
+    _form: '\Drupal\shield\Form\ShieldAuthenticatorDeleteForm'
+    _title: 'Delete authentication method'
+  requirements:
+    _permission: 'administer site configuration'

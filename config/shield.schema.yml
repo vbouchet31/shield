@@ -1,0 +1,32 @@
+# Schema for configuration files of the Shield module.
+
+shield.policy.*:
+  type: config_entity
+  label: 'Shield policy'
+  mapping:
+    name:
+      type: string
+    label:
+      type: label
+      label: 'Label'
+    constraints:
+      type: sequence
+      sequence:
+        type: mapping
+        mapping:
+          id:
+            type: string
+          data:
+            type: shield.constraint.[%parent.id]
+          weight:
+            type: integer
+          uuid:
+            type: uuid
+
+shield.constraint.*:
+  type: mapping
+  label: 'Constraint settings'
+
+# The AlwaysTrue constraint has no settings.
+shield.constraint.always_true:
+  type: sequence
