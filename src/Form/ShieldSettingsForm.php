@@ -86,8 +86,10 @@ class ShieldSettingsForm extends ConfigFormBase {
     ];
 
     $form['general'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('General settings'),
+      '#id' => 'general',
+      '#type' => 'details',
+      '#title' => $this->t('General'),
+      '#open' => TRUE,
     ];
 
     $form['general']['shield_enable'] = [
@@ -97,64 +99,11 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('shield_enable'),
     ];
 
-    $form['general']['shield_allow_cli'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Allow command line access'),
-      '#description' => $this->t('When the site is accessed from command line (e.g. from Drush, cron), the shield should not work.'),
-      '#default_value' => $shield_config->get('allow_cli'),
-    ];
-
-    $form['general']['allowlist'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('IP Allowlist'),
-      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><em>Warning: IP allowlists interfere with reverse proxy caching! @strong_style_tag Do not use allowlist if reverse proxy caching is in use!</strong></em>", [
-        '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
-      ]),
-      '#default_value' => $shield_config->get('allowlist'),
-      '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1"),
-    ];
-
-    $form['general']['http_method_allowlist'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('HTTP method allowlist'),
-      '#description' => $this->t('Select the HTTP methods for which shield should not be shown.'),
-      '#options' => [
-        'get' => $this->t('GET'),
-        'post' => $this->t('POST'),
-        'delete' => $this->t('DELETE'),
-        'head' => $this->t('HEAD'),
-        'put' => $this->t('PUT'),
-        'connect' => $this->t('CONNECT'),
-        'options' => $this->t('OPTIONS'),
-        'trace' => $this->t('TRACE'),
-        'patch' => $this->t('PATCH'),
-      ],
-      '#default_value' => $shield_config->get('http_method_allowlist') ?? [],
-    ];
-
-    $form['general']['shield_domains'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Allowlist Domains'),
-      '#description' => $this->t('Enter list of domain host names for which shield should not be shown, one per line.'),
-      '#default_value' => $shield_config->get('domains'),
-      '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
-    ];
-
-    $form['paths'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Paths'),
-      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash.'),
-    ];
-    $form['paths']['shield_method'] = [
-      '#type' => 'radios',
-      '#title' => $this->t('Path Method'),
-      '#default_value' => $shield_config->get('method'),
-      '#options' => [ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'), ShieldMiddleware::INCLUDE_METHOD => $this->t('Include')],
-    ];
-    $form['paths']['shield_paths'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Paths'),
-      '#default_value' => $shield_config->get('paths'),
+    $form['general']['shield_print'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Authentication message'),
+      '#description' => $this->t("The message to print in the authentication request popup. You can use [user] and [pass] to print the user and the password respectively. You can leave it empty, if you don't want to print out any special message to the users."),
+      '#default_value' => $shield_config->get('print'),
     ];
 
     $form['credentials'] = [
@@ -234,11 +183,71 @@ class ShieldSettingsForm extends ConfigFormBase {
       ];
     }
 
-    $form['shield_print'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Authentication message'),
-      '#description' => $this->t("The message to print in the authentication request popup. You can use [user] and [pass] to print the user and the password respectively. You can leave it empty, if you don't want to print out any special message to the users."),
-      '#default_value' => $shield_config->get('print'),
+    $form['exceptions'] = [
+      '#id' => 'exceptions',
+      '#type' => 'details',
+      '#title' => $this->t('Exceptions'),
+      '#open' => TRUE,
+    ];
+
+    $form['exceptions']['shield_allow_cli'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Allow command line access'),
+      '#description' => $this->t('When the site is accessed from command line (e.g. from Drush, cron), the shield should not work.'),
+      '#default_value' => $shield_config->get('allow_cli'),
+    ];
+
+    $form['exceptions']['allowlist'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('IP Allowlist'),
+      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><em>Warning: IP allowlists interfere with reverse proxy caching! @strong_style_tag Do not use allowlist if reverse proxy caching is in use!</strong></em>", [
+        '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
+      ]),
+      '#default_value' => $shield_config->get('allowlist'),
+      '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1"),
+    ];
+
+    $form['exceptions']['http_method_allowlist'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('HTTP method allowlist'),
+      '#description' => $this->t('Select the HTTP methods for which shield should not be shown.'),
+      '#options' => [
+        'get' => $this->t('GET'),
+        'post' => $this->t('POST'),
+        'delete' => $this->t('DELETE'),
+        'head' => $this->t('HEAD'),
+        'put' => $this->t('PUT'),
+        'connect' => $this->t('CONNECT'),
+        'options' => $this->t('OPTIONS'),
+        'trace' => $this->t('TRACE'),
+        'patch' => $this->t('PATCH'),
+      ],
+      '#default_value' => $shield_config->get('http_method_allowlist') ?? [],
+    ];
+
+    $form['exceptions']['shield_domains'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Allowlist Domains'),
+      '#description' => $this->t('Enter list of domain host names for which shield should not be shown, one per line.'),
+      '#default_value' => $shield_config->get('domains'),
+      '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
+    ];
+
+    $form['exceptions']['paths'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Paths'),
+      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash.'),
+    ];
+    $form['exceptions']['paths']['shield_method'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Path Method'),
+      '#default_value' => $shield_config->get('method'),
+      '#options' => [ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'), ShieldMiddleware::INCLUDE_METHOD => $this->t('Include')],
+    ];
+    $form['exceptions']['paths']['shield_paths'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Paths'),
+      '#default_value' => $shield_config->get('paths'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -251,14 +260,14 @@ class ShieldSettingsForm extends ConfigFormBase {
     $shield_config = $this->config('shield.settings');
     $credential_provider = $form_state->getValue(['credentials', 'credential_provider']);
     $shield_config
-      ->set('allow_cli', $form_state->getValue(['general', 'shield_allow_cli']))
       ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
-      ->set('allowlist', $form_state->getValue(['general', 'allowlist']))
-      ->set('http_method_allowlist', array_filter($form_state->getValue(['general', 'http_method_allowlist'])))
-      ->set('domains', $form_state->getValue(['general', 'shield_domains']))
-      ->set('print', $form_state->getValue('shield_print'))
-      ->set('method', $form_state->getValue(['paths', 'shield_method']))
-      ->set('paths', $form_state->getValue(['paths', 'shield_paths']))
+      ->set('print', $form_state->getValue(['general', 'shield_print']))
+      ->set('allow_cli', $form_state->getValue(['exceptions', 'shield_allow_cli']))
+      ->set('allowlist', $form_state->getValue(['exceptions', 'allowlist']))
+      ->set('http_method_allowlist', array_filter($form_state->getValue(['exceptions', 'http_method_allowlist'])))
+      ->set('domains', $form_state->getValue(['exceptions', 'shield_domains']))
+      ->set('method', $form_state->getValue(['exceptions', 'paths', 'shield_method']))
+      ->set('paths', $form_state->getValue(['exceptions', 'paths', 'shield_paths']))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([
       'credentials',

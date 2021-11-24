@@ -152,7 +152,7 @@ class ShieldTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldValueEquals('credentials[credential_provider]', 'multikey');
     $assert_session->fieldValueEquals('credentials[providers][multikey][user_pass_key]', 'shield_test');
-    $assert_session->fieldValueEquals('shield_print', 'Hello world!');
+    $assert_session->fieldValueEquals('general[shield_print]', 'Hello world!');
   }
 
   /**
