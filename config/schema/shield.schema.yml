@@ -21,6 +21,12 @@ shield.settings:
     print:
       type: string
       label: 'The greeting text, [user] and [pass] tokens are usable.'
+    method:
+      type: integer
+      label: 'Determines if paths should be excluded or included from Shield protection.'
+    paths:
+      type: text
+      label: 'Newline delimited list of paths that should be excluded or included from Shield protection.'
     allowlist:
       type: string
       label: 'Bypass shield based on user IP'

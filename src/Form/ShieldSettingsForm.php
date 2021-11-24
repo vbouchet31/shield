@@ -8,6 +8,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Render\Markup;
 use Drupal\key\Plugin\KeyPluginManager;
+use Drupal\shield\ShieldMiddleware;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -121,6 +122,23 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
     ];
 
+    $form['paths'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Paths'),
+      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash.'),
+    ];
+    $form['paths']['shield_method'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Path Method'),
+      '#default_value' => $shield_config->get('method'),
+      '#options' => [ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'), ShieldMiddleware::INCLUDE_METHOD => $this->t('Include')],
+    ];
+    $form['paths']['shield_paths'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Paths'),
+      '#default_value' => $shield_config->get('paths'),
+    ];
+
     $form['credentials'] = [
       '#id' => 'credentials',
       '#type' => 'details',
@@ -221,6 +239,8 @@ class ShieldSettingsForm extends ConfigFormBase {
       ->set('allowlist', $form_state->getValue(['general', 'allowlist']))
       ->set('domains', $form_state->getValue(['general', 'shield_domains']))
       ->set('print', $form_state->getValue('shield_print'))
+      ->set('method', $form_state->getValue(['paths', 'shield_method']))
+      ->set('paths', $form_state->getValue(['paths', 'shield_paths']))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([
       'credentials',

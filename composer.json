@@ -2,6 +2,7 @@
     "name": "drupal/shield",
     "type": "drupal-module",
     "license": "GPL-2.0-or-later",
+    "description": "Creates a general shield for the site.",
     "require-dev": {
         "drupal/key": "^1.0"
     },

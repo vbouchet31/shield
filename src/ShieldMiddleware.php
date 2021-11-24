@@ -3,8 +3,11 @@
 namespace Drupal\shield;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
+use Drupal\path_alias\AliasManager;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,6 +17,12 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
  * Middleware for the shield module.
  */
 class ShieldMiddleware implements HttpKernelInterface {
+
+  /**
+   * Constants representing if configured paths should be included or excluded.
+   */
+  const EXCLUDE_METHOD = 0;
+  const INCLUDE_METHOD = 1;
 
   /**
    * The decorated kernel.
@@ -44,6 +53,20 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $pathMatcher;
 
   /**
+   * The path alias manager.
+   *
+   * @var \Drupal\path_alias\AliasManager
+   */
+  protected $pathAliasManager;
+
+  /**
+   * Language Manager.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface
+   */
+  protected $languageManager;
+
+  /**
    * Constructs a BanMiddleware object.
    *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
@@ -54,12 +77,18 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   The EntityTypeManager service.
    * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
    *   The path matcher service.
+   * @param \Drupal\path_alias\AliasManager $path_alias_manager
+   *   The path alias manager.
+   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
+   *   Language Manager.
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManager $path_alias_manager, LanguageManagerInterface $language_manager) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
     $this->entityTypeManager = $entity_type_manager;
     $this->pathMatcher = $path_matcher;
+    $this->pathAliasManager = $path_alias_manager;
+    $this->languageManager = $language_manager;
   }
 
   /**
@@ -104,12 +133,15 @@ class ShieldMiddleware implements HttpKernelInterface {
     // Check if enabled.
     $shield_enabled = $config->get('shield_enable') && !empty($user);
 
-    if (!$shield_enabled || $type != self::MASTER_REQUEST || (PHP_SAPI === 'cli' && $allow_cli)) {
+    $bypass = FALSE;
+    $auth = FALSE;
+    if (!$shield_enabled || $type != self::MASTER_REQUEST || (PHP_SAPI === 'cli' && $allow_cli) || ($shield_enabled && $this->checkPathAllowed($request, $config))) {
       // Bypass:
       // 1. Empty username or Disabled from configuration.
       // 2. Subrequests.
       // 3. CLI requests if CLI is allowed.
-      return $this->httpKernel->handle($request, $type, $catch);
+      // 4. Path is added to exception.
+      $bypass = TRUE;
     }
     else {
       // Check if user IP is in allowlist.
@@ -141,8 +173,12 @@ class ShieldMiddleware implements HttpKernelInterface {
       $authenticated = isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass);
 
       if ($in_allowlist || $authenticated || $allow_domain) {
-        return $this->httpKernel->handle($request, $type, $catch);
+        $auth = TRUE;
       }
+    }
+
+    if ($bypass || $auth) {
+      return $this->httpKernel->handle($request, $type, $catch);
     }
 
     $response = new Response();
@@ -154,6 +190,57 @@ class ShieldMiddleware implements HttpKernelInterface {
     ]);
     $response->setStatusCode(401);
     return $response;
+  }
+
+  /**
+   * Checks if the current path should be allowed to bypass shield.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The global request object.
+   * @param \Drupal\Core\Config\ImmutableConfig $config
+   *   The current Shield config.
+   *
+   * @return bool
+   *   TRUE if the current path should be bypassed, and FALSE if not.
+   */
+  public function checkPathAllowed(Request $request, ImmutableConfig $config) {
+    $paths_to_check = $config->get('paths');
+    $method = $config->get('method');
+
+    // If nothing specified in path config we can return early.
+    if (empty($paths_to_check)) {
+      if ($method == self::EXCLUDE_METHOD) {
+        return FALSE;
+      }
+      elseif ($method == self::INCLUDE_METHOD) {
+        return TRUE;
+      }
+    }
+
+    $path = $request->getPathInfo();
+
+    // Remove language code from url.
+    foreach ($this->languageManager->getLanguages() as $language) {
+      $langcode = $language->getId();
+      if (substr($path, 0, strlen($langcode) + 1) === '/' . $langcode) {
+        $path = str_replace('/' . $langcode . '/', '/', $path);
+        break;
+      }
+    }
+
+    // Remove trailing slash.
+    $path = rtrim($path, '/');
+
+    // Make it simple slash again for home page.
+    $path = empty($path) ? '/' : $path;
+
+    // Get alias of path.
+    $path = $this->pathAliasManager->getAliasByPath($path);
+
+    // Match the path using path matcher service against paths in config.
+    $path_match = $this->pathMatcher->matchPath($path, $paths_to_check);
+
+    return $path_match && $method == self::EXCLUDE_METHOD || !$path_match && $method == self::INCLUDE_METHOD;
   }
 
 }
