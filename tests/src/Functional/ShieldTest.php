@@ -155,4 +155,44 @@ class ShieldTest extends BrowserTestBase {
     $assert_session->fieldValueEquals('shield_print', 'Hello world!');
   }
 
+  /**
+   * Validate the Shield pages exclude/include feature.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldPages() {
+    // Configure shield so it is enabled.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    // Assert we are presented with a http auth prompt on all the pages.
+    $this->drupalGet('user/login');
+    $this->assertSession()->statusCodeEquals(401);
+    $this->drupalGet('');
+    $this->assertSession()->statusCodeEquals(401);
+
+    // Exclude /user from the shield paths and assert we are not presented
+    // with a http auth prompt. Assert we are still presented with a http
+    // auth prompt on other paths.
+    $this->config('shield.settings')
+      ->set('method', 0)
+      ->set('paths', '/user/login')
+      ->save();
+    $this->drupalGet('user/login');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->drupalGet('');
+    $this->assertSession()->statusCodeEquals(401);
+
+    // Include /user from the shield paths and assert we are presented
+    // with a http auth prompt. Assert we are not presented with a http
+    // auth prompt on other paths anymore.
+    $this->config('shield.settings')
+      ->set('method', 1)
+      ->set('paths', '/user/login')
+      ->save();
+    $this->drupalGet('user/login');
+    $this->assertSession()->statusCodeEquals(401);
+    $this->drupalGet('');
+    $this->assertSession()->statusCodeEquals(200);
+  }
+
 }
