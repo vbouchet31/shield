@@ -103,19 +103,19 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('allow_cli'),
     ];
 
-    $form['general']['whitelist'] = [
+    $form['general']['allowlist'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('IP Whitelist'),
-      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><em>Warning: Whitelist interferes with reverse proxy caching! @strong_style_tag Do not use whitelist if reverse proxy caching is in use!</strong></em>", [
+      '#title' => $this->t('IP Allowlist'),
+      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><em>Warning: IP allowlists interfere with reverse proxy caching! @strong_style_tag Do not use allowlist if reverse proxy caching is in use!</strong></em>", [
         '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
       ]),
-      '#default_value' => $shield_config->get('whitelist'),
+      '#default_value' => $shield_config->get('allowlist'),
       '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1"),
     ];
 
     $form['general']['shield_domains'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Whitelist Domains'),
+      '#title' => $this->t('Allowlist Domains'),
       '#description' => $this->t('Enter list of domain host names for which shield should not be shown, one per line.'),
       '#default_value' => $shield_config->get('domains'),
       '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
@@ -218,7 +218,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $shield_config
       ->set('allow_cli', $form_state->getValue(['general', 'shield_allow_cli']))
       ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
-      ->set('whitelist', $form_state->getValue(['general', 'whitelist']))
+      ->set('allowlist', $form_state->getValue(['general', 'allowlist']))
       ->set('domains', $form_state->getValue(['general', 'shield_domains']))
       ->set('print', $form_state->getValue('shield_print'))
       ->set('credential_provider', $credential_provider);

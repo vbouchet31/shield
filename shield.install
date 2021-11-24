@@ -63,3 +63,14 @@ function shield_update_8003() {
     $config->set('shield_enable', TRUE)->save();
   }
 }
+
+/**
+ * Convert whitelist to allowlist.
+ */
+function shield_update_8004() {
+  $config = \Drupal::configFactory()->getEditable('shield.settings');
+  $config
+    ->set('allowlist', $config->get('whitelist'))
+    ->clear('whitelist')
+    ->save(TRUE);
+}

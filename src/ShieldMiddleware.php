@@ -112,14 +112,14 @@ class ShieldMiddleware implements HttpKernelInterface {
       return $this->httpKernel->handle($request, $type, $catch);
     }
     else {
-      // Check if user IP is in whitelist.
-      $in_whitelist = FALSE;
-      if ($whitelist = $config->get('whitelist')) {
-        $whitelist = array_filter(array_map('trim', explode("\n", $whitelist)));
-        $in_whitelist = IpUtils::checkIp($request->getClientIp(), $whitelist);
+      // Check if user IP is in allowlist.
+      $in_allowlist = FALSE;
+      if ($allowlist = $config->get('allowlist')) {
+        $allowlist = array_filter(array_map('trim', explode("\n", $allowlist)));
+        $in_allowlist = IpUtils::checkIp($request->getClientIp(), $allowlist);
       }
 
-      // Check if site domain is in whitelist.
+      // Check if site domain is in allowlist.
       $allow_domain = FALSE;
       if ($domains = $config->get('domains')) {
         if (!empty($domains)) {
@@ -140,7 +140,7 @@ class ShieldMiddleware implements HttpKernelInterface {
       }
       $authenticated = isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass);
 
-      if ($in_whitelist || $authenticated || $allow_domain) {
+      if ($in_allowlist || $authenticated || $allow_domain) {
         return $this->httpKernel->handle($request, $type, $catch);
       }
     }

@@ -21,7 +21,7 @@ shield.settings:
     print:
       type: string
       label: 'The greeting text, [user] and [pass] tokens are usable.'
-    whitelist:
+    allowlist:
       type: string
       label: 'Bypass shield based on user IP'
     domains:
