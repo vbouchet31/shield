@@ -195,4 +195,28 @@ class ShieldTest extends BrowserTestBase {
     $this->assertSession()->statusCodeEquals(200);
   }
 
+  /**
+   * Validate the http_method_allowlist feature.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldHttpMethodAllowlist() {
+      // Configure shield so it is enabled.
+      $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+      // Assert we are presented with a http auth prompt.
+      $this->drupalGet('user');
+      $this->assertSession()->statusCodeEquals(401);
+
+      // Setup shield module using the shield_test key.
+      $http_methods = ['get' => 'get'];
+      $shield_config = \Drupal::configFactory()->getEditable('shield.settings');
+      $shield_config->set('http_method_allowlist', $http_methods);
+      $shield_config->save();
+
+      // Assert we are not presented with a http auth prompt.
+      $this->drupalGet('user');
+      $this->assertSession()->statusCodeEquals(200);
+    }
+
 }

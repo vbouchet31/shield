@@ -30,6 +30,12 @@ shield.settings:
     allowlist:
       type: string
       label: 'Bypass shield based on user IP'
+    http_method_allowlist:
+      type: sequence
+      label: 'Bypass shield based on http method'
+      sequence:
+        type: string
+        label: 'Allowed HTTP method'
     domains:
       type: text
       label: 'Bypass shield based on domain name'

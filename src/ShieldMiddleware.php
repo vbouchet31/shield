@@ -135,12 +135,13 @@ class ShieldMiddleware implements HttpKernelInterface {
 
     $bypass = FALSE;
     $auth = FALSE;
-    if (!$shield_enabled || $type != self::MASTER_REQUEST || (PHP_SAPI === 'cli' && $allow_cli) || ($shield_enabled && $this->checkPathAllowed($request, $config))) {
+    if (!$shield_enabled || $type != self::MASTER_REQUEST || (PHP_SAPI === 'cli' && $allow_cli) || ($shield_enabled && $this->checkPathAllowed($request, $config)) || !empty($config->get('http_method_allowlist')[strtolower($request->getMethod())])) {
       // Bypass:
       // 1. Disabled from configuration.
       // 2. Subrequests.
       // 3. CLI requests if CLI is allowed.
       // 4. Path is added to exception.
+      // 5. The HTTP method is allowed.
       $bypass = TRUE;
     }
     else {

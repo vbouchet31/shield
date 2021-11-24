@@ -114,6 +114,24 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1"),
     ];
 
+    $form['general']['http_method_allowlist'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('HTTP method allowlist'),
+      '#description' => $this->t('Select the HTTP methods for which shield should not be shown.'),
+      '#options' => [
+        'get' => $this->t('GET'),
+        'post' => $this->t('POST'),
+        'delete' => $this->t('DELETE'),
+        'head' => $this->t('HEAD'),
+        'put' => $this->t('PUT'),
+        'connect' => $this->t('CONNECT'),
+        'options' => $this->t('OPTIONS'),
+        'trace' => $this->t('TRACE'),
+        'patch' => $this->t('PATCH'),
+      ],
+      '#default_value' => $shield_config->get('http_method_allowlist') ?? [],
+    ];
+
     $form['general']['shield_domains'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Allowlist Domains'),
@@ -236,6 +254,7 @@ class ShieldSettingsForm extends ConfigFormBase {
       ->set('allow_cli', $form_state->getValue(['general', 'shield_allow_cli']))
       ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
       ->set('allowlist', $form_state->getValue(['general', 'allowlist']))
+      ->set('http_method_allowlist', array_filter($form_state->getValue(['general', 'http_method_allowlist'])))
       ->set('domains', $form_state->getValue(['general', 'shield_domains']))
       ->set('print', $form_state->getValue('shield_print'))
       ->set('method', $form_state->getValue(['paths', 'shield_method']))
