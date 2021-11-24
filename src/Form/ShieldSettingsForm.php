@@ -182,7 +182,6 @@ class ShieldSettingsForm extends ConfigFormBase {
         '#type' => 'textfield',
         '#title' => $this->t('User'),
         '#default_value' => $shield_config->get('credentials.shield.user'),
-        '#description' => $this->t('Leave blank to disable authentication.'),
       ];
       $form['credentials']['providers']['shield']['pass'] = [
         '#type' => 'textfield',
