@@ -204,7 +204,7 @@ class ShieldSettingsForm extends ConfigFormBase {
         '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
       ]),
       '#default_value' => $shield_config->get('allowlist'),
-      '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1"),
+      '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1\n2001:0db8:0000:0000:0000:8a2e:0370:7334\n2001:db8::8a2e:370:7334"),
     ];
 
     $form['exceptions']['http_method_allowlist'] = [
