@@ -1,7 +1,14 @@
 services:
   shield.middleware:
     class: Drupal\shield\ShieldMiddleware
-    arguments: ['@config.factory', '@entity_type.manager', '@path.matcher', '@path_alias.manager', '@language_manager']
+    arguments:
+      - '@config.factory'
+      - '@entity_type.manager'
+      - '@path.matcher'
+      - '@path_alias.manager'
+      - '@language_manager'
+      - '@module_handler'
+      - '@request_stack'
     tags:
       # Ensure to come before page caching, so you don't serve cached pages to
       # banned users.

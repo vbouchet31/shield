@@ -16,3 +16,4 @@ method: 0
 paths: ''
 http_method_allowlist: []
 allow_cli: true
+unset_basic_auth_headers: true

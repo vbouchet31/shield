@@ -5,11 +5,13 @@ namespace Drupal\shield;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
 use Drupal\path_alias\AliasManager;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
@@ -67,7 +69,21 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $languageManager;
 
   /**
-   * Constructs a BanMiddleware object.
+   * The module handler.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * Symfony\Component\HttpFoundation\RequestStack definition.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
+   * Constructs a ShieldMiddleware object.
    *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
    *   The decorated kernel.
@@ -81,14 +97,27 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   The path alias manager.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   Language Manager.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The module handler.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   Request stack.
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManager $path_alias_manager, LanguageManagerInterface $language_manager) {
+  public function __construct(HttpKernelInterface $http_kernel,
+                              ConfigFactoryInterface $config_factory,
+                              EntityTypeManagerInterface $entity_type_manager,
+                              PathMatcherInterface $path_matcher,
+                              AliasManager $path_alias_manager,
+                              LanguageManagerInterface $language_manager,
+                              ModuleHandlerInterface $module_handler,
+                              RequestStack $requestStack) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
     $this->entityTypeManager = $entity_type_manager;
     $this->pathMatcher = $path_matcher;
     $this->pathAliasManager = $path_alias_manager;
     $this->languageManager = $language_manager;
+    $this->moduleHandler = $module_handler;
+    $this->requestStack = $requestStack;
   }
 
   /**
@@ -179,6 +208,13 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     if ($bypass || $auth) {
+      $basic_auth_enabled = $this->moduleHandler->moduleExists('basic_auth');
+      if ($basic_auth_enabled && $config->get('unset_basic_auth_headers') && !$this->basicAuthRequestAuthenticate($request)) {
+        // Unset basic auth headers to prevent basic_auth trigger on
+        // subsequent kernel calls.
+        $request->headers->remove('PHP_AUTH_USER');
+        $request->headers->remove('PHP_AUTH_PW');
+      }
       return $this->httpKernel->handle($request, $type, $catch);
     }
 
@@ -242,6 +278,32 @@ class ShieldMiddleware implements HttpKernelInterface {
     $path_match = $this->pathMatcher->matchPath($path, $paths_to_check);
 
     return $path_match && $method == self::EXCLUDE_METHOD || !$path_match && $method == self::INCLUDE_METHOD;
+  }
+
+  /**
+   * Check if current request authenticated with basic auth.
+   *
+   * Call this if basic_auth is enabled.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   Request object on which headers will be modified.
+   */
+  private function basicAuthRequestAuthenticate(Request $request) {
+    // Check for empty username and password in case of shield disabled.
+    if ($request->server->get('PHP_AUTH_USER') && $request->server->get('PHP_AUTH_PW')) {
+      // We need to push the current request to the request stack because
+      // basic_auth uses a flood functionality which needs the client IP.
+      $this->requestStack->push($request);
+      /* @var $basicAuthService \Drupal\basic_auth\Authentication\Provider\BasicAuth */
+      $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
+      if ($basicAuthService->authenticate($request)) {
+        // Reset request stack, as we don't need it anymore.
+        $this->requestStack->pop();
+        return TRUE;
+      }
+      $this->requestStack->pop();
+    }
+    return FALSE;
   }
 
 }

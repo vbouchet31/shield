@@ -18,6 +18,7 @@ class ShieldTest extends BrowserTestBase {
   protected static $modules = [
     'shield',
     'key',
+    'basic_auth'
   ];
 
   /**
@@ -201,22 +202,40 @@ class ShieldTest extends BrowserTestBase {
    * @throws \Behat\Mink\Exception\ExpectationException
    */
   public function testShieldHttpMethodAllowlist() {
-      // Configure shield so it is enabled.
-      $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+    // Configure shield so it is enabled.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
 
-      // Assert we are presented with a http auth prompt.
-      $this->drupalGet('user');
-      $this->assertSession()->statusCodeEquals(401);
+    // Assert we are presented with a http auth prompt.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(401);
 
-      // Setup shield module using the shield_test key.
-      $http_methods = ['get' => 'get'];
-      $shield_config = \Drupal::configFactory()->getEditable('shield.settings');
-      $shield_config->set('http_method_allowlist', $http_methods);
-      $shield_config->save();
+    // Setup shield module using the shield_test key.
+    $http_methods = ['get' => 'get'];
+    $shield_config = \Drupal::configFactory()->getEditable('shield.settings');
+    $shield_config->set('http_method_allowlist', $http_methods);
+    $shield_config->save();
 
-      // Assert we are not presented with a http auth prompt.
-      $this->drupalGet('user');
-      $this->assertSession()->statusCodeEquals(200);
-    }
+    // Assert we are not presented with a http auth prompt.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(200);
+  }
+
+  /**
+   * Validate the basic_auth headers unset feature.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldWithBasicAuth() {
+    // Configure shield, so it is enabled and basic_auth headers are kept.
+    // We don't need to test the case with unset_basic_auth_headers to TRUE
+    // as it is the default value, it is tested by testShieldCred().
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('unset_basic_auth_headers', FALSE)
+      ->save();
+
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
+    $this->assertSession()->statusCodeEquals(403);
+  }
 
 }
