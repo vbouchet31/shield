@@ -74,3 +74,25 @@ function shield_update_8004() {
     ->clear('whitelist')
     ->save(TRUE);
 }
+
+/**
+ * Set the default value of new configs for existing sites.
+ */
+function shield_update_8005() {
+  $config = \Drupal::configFactory()->get('shield.settings');
+
+  $editable = \Drupal::configFactory()->getEditable('shield.settings');
+  if (is_null($config->get('domains'))) {
+    $editable->set('domains', '');
+  }
+  if (is_null($config->get('method'))) {
+    $editable->set('method', 0);
+  }
+  if (is_null($config->get('path'))) {
+    $editable->set('path', '');
+  }
+  if (is_null($config->get('unset_basic_auth_headers'))) {
+    $editable->set('unset_basic_auth_headers', TRUE);
+  }
+  $editable->save(TRUE);
+}
