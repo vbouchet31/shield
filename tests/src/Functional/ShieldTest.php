@@ -35,6 +35,7 @@ class ShieldTest extends BrowserTestBase {
     // Do basic setup to prepare shield operating but disable it.
     $this->config('shield.settings')
       ->set('shield_enable', FALSE)
+      ->set('debug_header', TRUE)
       ->set('credential_provider', 'shield')
       ->set('credentials.shield.user', 'user')
       ->set('credentials.shield.pass', 'password')
@@ -56,6 +57,36 @@ class ShieldTest extends BrowserTestBase {
   }
 
   /**
+   * Validate debug_header config adds X-Shield-Status header.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldHeader() {
+    // Assert the response get the debug header.
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'disabled');
+
+    $this->config('shield.settings')
+      ->set('debug_header', FALSE)
+      ->save();
+
+    // Assert the response does not get the debug header (EventSubscriber).
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderDoesNotExist('X-Shield-Status');
+
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->save();
+
+    // Assert the response does not get the debug header (ShieldMiddleware).
+    $this->drupalGet('user');
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderDoesNotExist('X-Shield-Status');
+  }
+
+  /**
    * Validate shield_enable config display or not the http auth prompt.
    *
    * @throws \Behat\Mink\Exception\ExpectationException
@@ -64,6 +95,7 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are not presented with a http auth prompt.
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'disabled');
 
     // Configure shield so it is enabled.
     $this->config('shield.settings')->set('shield_enable', TRUE)->save();
@@ -71,6 +103,7 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are presented with a http auth prompt.
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
   }
 
   /**
@@ -106,9 +139,11 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are presented with a http auth prompt.
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
 
     $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
     $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'authenticated');
   }
 
   /**
@@ -141,16 +176,19 @@ class ShieldTest extends BrowserTestBase {
     $this->drupalGet($path_to_test);
     $assert_session->responseHeaderContains('WWW-Authenticate', 'Basic realm="Hello world!"');
     $assert_session->statusCodeEquals(401);
+    $assert_session->responseHeaderEquals('X-Shield-Status', 'pending');
 
     // Assert we can authenticate using the credentials from our key.
     $key_values = \Drupal::service('key.repository')->getKey('shield_test')->getKeyValues();
     $user_pass = $key_values['username'] . ':' . $key_values['password'];
     $this->drupalGet($path_to_test, [], ['Authorization' => 'Basic ' . base64_encode("$user_pass")]);
     $assert_session->statusCodeEquals(200);
+    $assert_session->responseHeaderEquals('X-Shield-Status', 'authenticated');
 
     // Assert our configuration shows correctly in the UI.
     $this->drupalGet('admin/config/system/shield');
     $assert_session->statusCodeEquals(200);
+    $assert_session->responseHeaderEquals('X-Shield-Status', 'authenticated');
     $assert_session->fieldValueEquals('credentials[credential_provider]', 'multikey');
     $assert_session->fieldValueEquals('credentials[providers][multikey][user_pass_key]', 'shield_test');
     $assert_session->fieldValueEquals('general[shield_print]', 'Hello world!');
@@ -168,8 +206,10 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are presented with a http auth prompt on all the pages.
     $this->drupalGet('user/login');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
     $this->drupalGet('');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
 
     // Exclude /user from the shield paths and assert we are not presented
     // with a http auth prompt. Assert we are still presented with a http
@@ -178,10 +218,13 @@ class ShieldTest extends BrowserTestBase {
       ->set('method', 0)
       ->set('paths', '/user/login')
       ->save();
+
     $this->drupalGet('user/login');
     $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (path)');
     $this->drupalGet('');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
 
     // Include /user from the shield paths and assert we are presented
     // with a http auth prompt. Assert we are not presented with a http
@@ -190,10 +233,13 @@ class ShieldTest extends BrowserTestBase {
       ->set('method', 1)
       ->set('paths', '/user/login')
       ->save();
+
     $this->drupalGet('user/login');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
     $this->drupalGet('');
     $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (path)');
   }
 
   /**
@@ -208,6 +254,7 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are presented with a http auth prompt.
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
 
     // Setup shield module using the shield_test key.
     $http_methods = ['get' => 'get'];
@@ -218,6 +265,7 @@ class ShieldTest extends BrowserTestBase {
     // Assert we are not presented with a http auth prompt.
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (http method)');
   }
 
   /**

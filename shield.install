@@ -96,3 +96,16 @@ function shield_update_8005() {
   }
   $editable->save(TRUE);
 }
+
+/**
+ * Add the debug_header config.
+ */
+function shield_update_8006() {
+  $config = \Drupal::configFactory()->get('shield.settings');
+
+  if (is_null($config->get('debug_header'))) {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->set('debug_header', FALSE)
+      ->save(TRUE);
+  }
+}

@@ -125,9 +125,56 @@ class ShieldMiddleware implements HttpKernelInterface {
    */
   public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = TRUE) {
     $config = $this->configFactory->get('shield.settings');
-    $allow_cli = $config->get('allow_cli');
-    $user = NULL;
 
+    // Bypass as shield is disabled.
+    if (!$config->get('shield_enable')) {
+      $request->headers->set('X-Shield-Status', 'disabled');
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Bypass as it is a subrequest.
+    if ($type != self::MASTER_REQUEST) {
+      $request->headers->set('X-Shield-Status', 'skipped (subrequest)');
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Bypass as shield is configured to allow CLI.
+    if (PHP_SAPI === 'cli' && $config->get('allow_cli')) {
+      $request->headers->set('X-Shield-Status', 'skipped (cli)');
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Bypass as the path is allowed.
+    if ($this->checkPathAllowed($request, $config)) {
+      $request->headers->set('X-Shield-Status', 'skipped (path)');
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Bypass as the HTTP method is allowed.
+    if (!empty($config->get('http_method_allowlist')[strtolower($request->getMethod())])) {
+      $request->headers->set('X-Shield-Status', 'skipped (http method)');
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Bypass as the IP is allowed.
+    if ($allowlist = $config->get('allowlist')) {
+      $allowlist = array_filter(array_map('trim', explode("\n", $allowlist)));
+      if (IpUtils::checkIp($request->getClientIp(), $allowlist)) {
+        $request->headers->set('X-Shield-Status', 'skipped (ip)');
+        return $this->bypass($request, $type, $catch);
+      }
+    }
+
+    // Bypass as the domain is allowed.
+    if ($domains = $config->get('domains')) {
+      if (!empty($domains) && $this->pathMatcher->matchPath($request->getHost(), $domains)) {
+        $request->headers->set('X-Shield-Status', 'skipped (domain)');
+        return $this->bypass($request, $type, $catch);
+      }
+    }
+
+    // Check if user has provided credentials.
+    $user = NULL;
     switch ($config->get('credential_provider')) {
       case 'shield':
         $user = $config->get('credentials.shield.user');
@@ -158,64 +205,19 @@ class ShieldMiddleware implements HttpKernelInterface {
         }
         break;
     }
-
-    // Check if enabled.
-    $shield_enabled = $config->get('shield_enable');
-
-    $bypass = FALSE;
-    $auth = FALSE;
-    if (!$shield_enabled || $type != self::MASTER_REQUEST || (PHP_SAPI === 'cli' && $allow_cli) || ($shield_enabled && $this->checkPathAllowed($request, $config)) || !empty($config->get('http_method_allowlist')[strtolower($request->getMethod())])) {
-      // Bypass:
-      // 1. Disabled from configuration.
-      // 2. Subrequests.
-      // 3. CLI requests if CLI is allowed.
-      // 4. Path is added to exception.
-      // 5. The HTTP method is allowed.
-      $bypass = TRUE;
+    if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
+      $input_user = $request->server->get('PHP_AUTH_USER');
+      $input_pass = $request->server->get('PHP_AUTH_PW');
     }
-    else {
-      // Check if user IP is in allowlist.
-      $in_allowlist = FALSE;
-      if ($allowlist = $config->get('allowlist')) {
-        $allowlist = array_filter(array_map('trim', explode("\n", $allowlist)));
-        $in_allowlist = IpUtils::checkIp($request->getClientIp(), $allowlist);
-      }
-
-      // Check if site domain is in allowlist.
-      $allow_domain = FALSE;
-      if ($domains = $config->get('domains')) {
-        if (!empty($domains)) {
-          $allow_domain = $this->pathMatcher->matchPath($request->getHost(), $domains);
-        }
-      }
-
-      // Check if user has provided credentials.
-      if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
-        $input_user = $request->server->get('PHP_AUTH_USER');
-        $input_pass = $request->server->get('PHP_AUTH_PW');
-      }
-      elseif (!empty($request->server->get('HTTP_AUTHORIZATION'))) {
-        list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2);
-      }
-      elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
-        list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
-      }
-      $authenticated = isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass);
-
-      if ($in_allowlist || $authenticated || $allow_domain) {
-        $auth = TRUE;
-      }
+    elseif (!empty($request->server->get('HTTP_AUTHORIZATION'))) {
+      list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2);
     }
-
-    if ($bypass || $auth) {
-      $basic_auth_enabled = $this->moduleHandler->moduleExists('basic_auth');
-      if ($basic_auth_enabled && $config->get('unset_basic_auth_headers') && !$this->basicAuthRequestAuthenticate($request)) {
-        // Unset basic auth headers to prevent basic_auth trigger on
-        // subsequent kernel calls.
-        $request->headers->remove('PHP_AUTH_USER');
-        $request->headers->remove('PHP_AUTH_PW');
-      }
-      return $this->httpKernel->handle($request, $type, $catch);
+    elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
+      list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
+    }
+    if (isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass)) {
+      $request->headers->set('X-Shield-Status', 'authenticated');
+      return $this->bypass($request, $type, $catch);
     }
 
     $response = new Response();
@@ -225,8 +227,40 @@ class ShieldMiddleware implements HttpKernelInterface {
         '[pass]' => $pass,
       ]) . '"',
     ]);
+    if ($config->get('debug_header')) {
+      $response->headers->add(['X-Shield-Status' => 'pending']);
+    }
+
     $response->setStatusCode(401);
     return $response;
+  }
+
+  /**
+   * Forward the request to the normal Kernel for processing.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request.
+   * @param int $type
+   *   The type of the request.
+   * @param bool $catch
+   *   Whether to catch exceptions or not.
+   *
+   * @return Response
+   *   A Response instance.
+   *
+   * @throws \Exception When an Exception occurs during processing
+   */
+  public function bypass(Request $request, $type, $catch) {
+    $basic_auth_enabled = $this->moduleHandler->moduleExists('basic_auth');
+    $config = $this->configFactory->get('shield.settings');
+    if ($basic_auth_enabled && $config->get('unset_basic_auth_headers') && !$this->basicAuthRequestAuthenticate($request)) {
+      // Unset basic auth headers to prevent basic_auth trigger on
+      // subsequent kernel calls.
+      $request->headers->remove('PHP_AUTH_USER');
+      $request->headers->remove('PHP_AUTH_PW');
+    }
+
+    return $this->httpKernel->handle($request, $type, $catch);
   }
 
   /**

@@ -10,6 +10,7 @@ credentials:
   multikey:
     user_pass_key: ''
 print: 'Hello!'
+debug_header: false
 allowlist: ''
 domains: ''
 method: 0

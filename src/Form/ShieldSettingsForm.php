@@ -106,6 +106,13 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('print'),
     ];
 
+    $form['general']['debug_header'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable debug header'),
+      '#description' => $this->t('Add a X-Shield-Status header in response to indicate if shield is disabled, skipped, enabled to ease debug.'),
+      '#default_value' => $shield_config->get('debug_header'),
+    ];
+
     $form['credentials'] = [
       '#id' => 'credentials',
       '#type' => 'details',
