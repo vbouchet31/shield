@@ -167,6 +167,7 @@ class ShieldMiddleware implements HttpKernelInterface {
 
     // Bypass as the domain is allowed.
     if ($domains = $config->get('domains')) {
+      $domains = str_replace(' ', '', $domains);
       if (!empty($domains) && $this->pathMatcher->matchPath($request->getHost(), $domains)) {
         $request->headers->set('X-Shield-Status', 'skipped (domain)');
         return $this->bypass($request, $type, $catch);
@@ -287,6 +288,8 @@ class ShieldMiddleware implements HttpKernelInterface {
         return TRUE;
       }
     }
+
+    $paths_to_check = str_replace(' ', '', $paths_to_check);
 
     $path = $request->getPathInfo();
 
