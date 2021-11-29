@@ -269,6 +269,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $shield_config
       ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
       ->set('print', $form_state->getValue(['general', 'shield_print']))
+      ->set('debug_header', $form_state->getValue(['general', 'debug_header']))
       ->set('allow_cli', $form_state->getValue(['exceptions', 'shield_allow_cli']))
       ->set('allowlist', $form_state->getValue(['exceptions', 'allowlist']))
       ->set('http_method_allowlist', array_filter($form_state->getValue(['exceptions', 'http_method_allowlist'])))
