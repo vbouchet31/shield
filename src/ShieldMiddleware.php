@@ -246,10 +246,11 @@ class ShieldMiddleware implements HttpKernelInterface {
    * @param bool $catch
    *   Whether to catch exceptions or not.
    *
-   * @return Response
+   * @return \Symfony\Component\HttpFoundation\Response
    *   A Response instance.
    *
-   * @throws \Exception When an Exception occurs during processing
+   * @throws \Exception
+   *   When an Exception occurs during processing.
    */
   public function bypass(Request $request, $type, $catch) {
     $basic_auth_enabled = $this->moduleHandler->moduleExists('basic_auth');
