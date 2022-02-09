@@ -332,7 +332,7 @@ class ShieldMiddleware implements HttpKernelInterface {
       // We need to push the current request to the request stack because
       // basic_auth uses a flood functionality which needs the client IP.
       $this->requestStack->push($request);
-      /* @var $basicAuthService \Drupal\basic_auth\Authentication\Provider\BasicAuth */
+      /** @var $basicAuthService \Drupal\basic_auth\Authentication\Provider\BasicAuth */
       $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
       if ($basicAuthService->authenticate($request)) {
         // Reset request stack, as we don't need it anymore.

@@ -122,7 +122,12 @@ class ShieldSettingsForm extends ConfigFormBase {
     ];
 
     $credential_provider = $shield_config->get('credential_provider');
-    $credential_provider = ($form_state->hasValue(['credentials', 'credential_provider'])) ? $form_state->getValue(['credentials', 'credential_provider']) : $credential_provider;
+    if ($form_state->hasValue(['credentials', 'credential_provider'])) {
+      $credential_provider = $form_state->getValue([
+        'credentials',
+        'credential_provider',
+      ]);
+    }
 
     $form['credentials']['credential_provider'] = [
       '#type' => 'select',
@@ -250,7 +255,10 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#type' => 'radios',
       '#title' => $this->t('Path Method'),
       '#default_value' => $shield_config->get('method'),
-      '#options' => [ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'), ShieldMiddleware::INCLUDE_METHOD => $this->t('Include')],
+      '#options' => [
+        ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'),
+        ShieldMiddleware::INCLUDE_METHOD => $this->t('Include'),
+      ],
     ];
     $form['exceptions']['paths']['shield_paths'] = [
       '#type' => 'textarea',
@@ -266,19 +274,51 @@ class ShieldSettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $shield_config = $this->config('shield.settings');
-    $credential_provider = $form_state->getValue(['credentials', 'credential_provider']);
-    $http_method_allowlist = array_filter($form_state->getValue(['exceptions', 'http_method_allowlist']));
+    $credential_provider = $form_state->getValue([
+      'credentials',
+      'credential_provider',
+    ]);
+    $http_method_allowlist = array_filter($form_state->getValue([
+      'exceptions',
+      'http_method_allowlist',
+    ]));
 
     $shield_config
-      ->set('shield_enable', $form_state->getValue(['general', 'shield_enable']))
-      ->set('print', $form_state->getValue(['general', 'shield_print']))
-      ->set('debug_header', $form_state->getValue(['general', 'debug_header']))
-      ->set('allow_cli', $form_state->getValue(['exceptions', 'shield_allow_cli']))
-      ->set('allowlist', $form_state->getValue(['exceptions', 'allowlist']))
+      ->set('shield_enable', $form_state->getValue([
+        'general',
+        'shield_enable',
+      ]))
+      ->set('print', $form_state->getValue([
+        'general',
+        'shield_print',
+      ]))
+      ->set('debug_header', $form_state->getValue([
+        'general',
+        'debug_header',
+      ]))
+      ->set('allow_cli', $form_state->getValue([
+        'exceptions',
+        'shield_allow_cli',
+      ]))
+      ->set('allowlist', $form_state->getValue([
+        'exceptions',
+        'allowlist',
+      ]))
       ->set('http_method_allowlist', $http_method_allowlist)
-      ->set('domains', $form_state->getValue(['exceptions', 'shield_domains']))
-      ->set('method', $form_state->getValue(['exceptions', 'paths', 'shield_method']))
-      ->set('paths', $form_state->getValue(['exceptions', 'paths', 'shield_paths']))
+      ->set('domains', $form_state->getValue([
+        'exceptions',
+        'shield_domains',
+      ]))
+      ->set('method', $form_state->getValue([
+        'exceptions',
+        'paths',
+        'shield_method',
+      ]))
+      ->set('paths', $form_state->getValue([
+        'exceptions',
+        'paths',
+        'shield_paths',
+      ]))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([
       'credentials',

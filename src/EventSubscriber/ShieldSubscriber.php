@@ -29,7 +29,7 @@ class ShieldSubscriber implements EventSubscriberInterface {
   public function __construct(ConfigFactoryInterface $config_factory) {
     $this->config = $config_factory->get('shield.settings');
   }
-  
+
   /**
    * {@inheritdoc}
    */
