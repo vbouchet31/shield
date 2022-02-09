@@ -43,8 +43,8 @@ class ShieldMigrateTest extends MigrateDrupal7TestBase {
           'pass' => '1234',
         ],
       ],
-      'print' => 'Authenticate!',
       'allow_cli' => FALSE,
+      'print' => 'Authenticate!',
       'method' => 0,
       'paths' => '/node/3
 /blog/*',
