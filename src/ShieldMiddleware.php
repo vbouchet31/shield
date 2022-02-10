@@ -8,7 +8,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
-use Drupal\path_alias\AliasManager;
+use Drupal\path_alias\AliasManagerInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -57,7 +57,7 @@ class ShieldMiddleware implements HttpKernelInterface {
   /**
    * The path alias manager.
    *
-   * @var \Drupal\path_alias\AliasManager
+   * @var \Drupal\path_alias\AliasManagerInterface
    */
   protected $pathAliasManager;
 
@@ -93,7 +93,7 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   The EntityTypeManager service.
    * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
    *   The path matcher service.
-   * @param \Drupal\path_alias\AliasManager $path_alias_manager
+   * @param \Drupal\path_alias\AliasManagerInterface $path_alias_manager
    *   The path alias manager.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   Language Manager.
@@ -106,7 +106,7 @@ class ShieldMiddleware implements HttpKernelInterface {
                               ConfigFactoryInterface $config_factory,
                               EntityTypeManagerInterface $entity_type_manager,
                               PathMatcherInterface $path_matcher,
-                              AliasManager $path_alias_manager,
+                              AliasManagerInterface $path_alias_manager,
                               LanguageManagerInterface $language_manager,
                               ModuleHandlerInterface $module_handler,
                               RequestStack $requestStack) {
