@@ -163,6 +163,12 @@ class ShieldMiddleware implements HttpKernelInterface {
       }
     }
 
+    if ($config->get('log_ipaddr')) {
+      $tmp = ['File'=>__FILE__,'Line'=>__LINE__,'ip_addr'=>$request->getClientIp()];
+      \Drupal::logger('Shield')
+        ->notice('<pre>' . print_r($tmp, TRUE) . '</pre>');
+    }
+
     // Bypass as the domain is allowed.
     if ($domains = $config->get('domains')) {
       $domains = str_replace(' ', '', $domains);
