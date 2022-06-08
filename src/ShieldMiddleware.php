@@ -332,13 +332,13 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   Request object on which headers will be modified.
    */
   private function basicAuthRequestAuthenticate(Request $request) {
+    /** @var \Drupal\basic_auth\Authentication\Provider\BasicAuth $basicAuthService */
+    $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
     // Check for empty username and password in case of shield disabled.
-    if ($request->server->get('PHP_AUTH_USER') && $request->server->get('PHP_AUTH_PW')) {
+    if ($basicAuthService->applies($request)) {
       // We need to push the current request to the request stack because
       // basic_auth uses a flood functionality which needs the client IP.
       $this->requestStack->push($request);
-      /** @var \Drupal\basic_auth\Authentication\Provider\BasicAuth $basicAuthService */
-      $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
       try {
         $authenticate = $basicAuthService->authenticate($request);
       } catch (\Exception $e) {
