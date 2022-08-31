@@ -3,7 +3,7 @@ description: 'Creates a general shield for the site.'
 package: 'Administration'
 
 type: module
-core_version_requirement: ^8.8 || ^9
+core_version_requirement: ^9.2 || ^10
 dependencies:
   - drupal:path_alias
 

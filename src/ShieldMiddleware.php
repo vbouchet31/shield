@@ -27,6 +27,11 @@ class ShieldMiddleware implements HttpKernelInterface {
   const INCLUDE_METHOD = 1;
 
   /**
+   * Provide BC compatibility for Drupal 9 / Symfony 4.x.
+   */
+  const MAIN_REQUEST = 1;
+
+  /**
    * The decorated kernel.
    *
    * @var \Symfony\Component\HttpKernel\HttpKernelInterface
@@ -123,7 +128,7 @@ class ShieldMiddleware implements HttpKernelInterface {
   /**
    * {@inheritdoc}
    */
-  public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = TRUE) {
+  public function handle(Request $request, $type = self::MAIN_REQUEST, $catch = TRUE): Response {
     $config = $this->configFactory->get('shield.settings');
 
     // Bypass as shield is disabled.
@@ -133,7 +138,7 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     // Bypass as it is a subrequest.
-    if ($type != self::MASTER_REQUEST) {
+    if ($type != self::MAIN_REQUEST) {
       $request->headers->set('X-Shield-Status', 'skipped (subrequest)');
       return $this->bypass($request, $type, $catch);
     }
@@ -211,10 +216,10 @@ class ShieldMiddleware implements HttpKernelInterface {
       $input_pass = $request->server->get('PHP_AUTH_PW');
     }
     elseif (!empty($request->server->get('HTTP_AUTHORIZATION'))) {
-      list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2);
+      [$input_user, $input_pass] = explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2);
     }
     elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
-      list($input_user, $input_pass) = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
+      [$input_user, $input_pass] = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
     }
     if (isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass)) {
       $request->headers->set('X-Shield-Status', 'authenticated');

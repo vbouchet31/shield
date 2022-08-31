@@ -5,7 +5,7 @@ namespace Drupal\shield\EventSubscriber;
 use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
@@ -40,10 +40,10 @@ class ShieldSubscriber implements EventSubscriberInterface {
   /**
    * Add shield header and cache tag.
    *
-   * @param \Symfony\Component\HttpKernel\Event\FilterResponseEvent $event
+   * @param \Symfony\Component\HttpKernel\Event\ResponseEvent $event
    *   The response event.
    */
-  public function onResponse(FilterResponseEvent $event) {
+  public function onResponse(ResponseEvent $event) {
     $response = $event->getResponse();
 
     // If configured, add the debug header calculated in ShieldMiddleware.

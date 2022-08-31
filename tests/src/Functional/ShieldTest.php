@@ -50,7 +50,7 @@ class ShieldTest extends BrowserTestBase {
       'key_type_settings' => [],
       'key_provider' => 'file',
       'key_provider_settings' => [
-        'file_location' => drupal_get_path('module', 'shield') . '/tests/files/shield_test.key',
+        'file_location' => \Drupal::service('extension.list.module')->getPath('shield') . '/tests/files/shield_test.key',
         'strip_line_breaks' => FALSE,
       ],
     ])->save();
