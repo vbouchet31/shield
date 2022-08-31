@@ -88,8 +88,8 @@ function shield_update_8005() {
   if (is_null($config->get('method'))) {
     $editable->set('method', 0);
   }
-  if (is_null($config->get('path'))) {
-    $editable->set('path', '');
+  if (is_null($config->get('paths'))) {
+    $editable->set('paths', '');
   }
   if (is_null($config->get('unset_basic_auth_headers'))) {
     $editable->set('unset_basic_auth_headers', TRUE);
@@ -124,4 +124,17 @@ function shield_update_8007() {
       ->set('shield_enable', FALSE)
       ->save(TRUE);
   }
+}
+
+/**
+ * Update 'paths' variable if null, and remove unused 'path' variable.
+ */
+function shield_update_8008() {
+    $editable = \Drupal::configFactory()->getEditable('shield.settings');
+    if (is_null($editable->get('paths'))) {
+      $editable->set('paths', '');
+    }
+    if ($editable->get('path') !== NULL) {
+      $editable->clear('path')->save(TRUE);
+    }
 }
