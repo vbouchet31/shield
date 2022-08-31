@@ -4,7 +4,7 @@
     "license": "GPL-2.0-or-later",
     "description": "Creates a general shield for the site.",
     "require-dev": {
-        "drupal/key": "1.x-dev"
+        "drupal/key": "^1.16"
     },
     "extra": {
         "branch-alias": {
