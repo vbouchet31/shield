@@ -339,7 +339,12 @@ class ShieldMiddleware implements HttpKernelInterface {
       $this->requestStack->push($request);
       /** @var \Drupal\basic_auth\Authentication\Provider\BasicAuth $basicAuthService */
       $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
-      if ($basicAuthService->authenticate($request)) {
+      try {
+        $authenticate = $basicAuthService->authenticate($request);
+      } catch (\Exception $e) {
+        // Do nothing.
+      }
+      if ($authenticate) {
         // Reset request stack, as we don't need it anymore.
         $this->requestStack->pop();
         return TRUE;
