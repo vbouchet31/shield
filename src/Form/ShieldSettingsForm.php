@@ -3,6 +3,7 @@
 namespace Drupal\shield\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Form\ConfigFormBase;
@@ -35,13 +36,15 @@ class ShieldSettingsForm extends ConfigFormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface|null $typedConfigManager
+   *   The typed config manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler.
    * @param \Drupal\key\Plugin\KeyPluginManager|null $keyTypeManager
    *   The key plugin manager.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, ModuleHandlerInterface $moduleHandler, KeyPluginManager $keyTypeManager = NULL) {
-    parent::__construct($config_factory);
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, ModuleHandlerInterface $moduleHandler, KeyPluginManager $keyTypeManager = NULL) {
+    parent::__construct($config_factory, $typedConfigManager);
     $this->moduleHandler = $moduleHandler;
     $this->keyTypeManager = $keyTypeManager;
   }
@@ -52,6 +55,7 @@ class ShieldSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
+      $container->get('config.typed'),
       $container->get('module_handler'),
       $container->get('plugin.manager.key.key_type', ContainerInterface::NULL_ON_INVALID_REFERENCE)
     );

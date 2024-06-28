@@ -3,6 +3,7 @@
 namespace Drupal\Tests\shield\Kernel;
 
 use Drupal\Tests\migrate_drupal\Kernel\d7\MigrateDrupal7TestBase;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
  * Tests shield config migration.
@@ -35,7 +36,10 @@ class ShieldMigrateTest extends MigrateDrupal7TestBase {
    * Asserts that shield configuration is migrated.
    */
   public function testShieldMigration() {
-    $expected_config = [
+    $expected_config = version_compare(\Drupal::VERSION, '10.3.0', '>=') ? ['langcode' => 'en'] : [];
+
+    //if (VersionCompar)
+    $expected_config += [
       'shield_enable' => TRUE,
       'credentials' => [
         'shield' => [
