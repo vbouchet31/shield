@@ -107,7 +107,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $form['general']['shield_print'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Authentication message'),
-      '#description' => $this->t("The message to print in the authentication request popup. You can use [user] and [pass] to print the user and the password respectively. You can leave it empty, if you don't want to print out any special message to the users."),
+      '#description' => $this->t("<strong>Warning:</strong> Due to security issues, most modern browsers will not print this message anymore. <br /> The message to print in the authentication request popup. You can use [user] and [pass] to print the user and the password respectively. You can leave it empty, if you don't want to print out any special message to the users."),
       '#default_value' => $shield_config->get('print'),
     ];
 
