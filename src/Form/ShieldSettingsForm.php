@@ -143,7 +143,7 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#ajax' => [
         'callback' => [$this, 'ajaxCallback'],
         'wrapper' => 'credentials_configuration',
-        'method' => 'replace',
+        'method' => 'replaceWith',
         'effect' => 'fade',
       ],
     ];
