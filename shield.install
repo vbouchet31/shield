@@ -130,11 +130,11 @@ function shield_update_8007() {
  * Update 'paths' variable if null, and remove unused 'path' variable.
  */
 function shield_update_8008() {
-    $editable = \Drupal::configFactory()->getEditable('shield.settings');
-    if (is_null($editable->get('paths'))) {
-      $editable->set('paths', '');
-    }
-    if ($editable->get('path') !== NULL) {
-      $editable->clear('path')->save(TRUE);
-    }
+  $editable = \Drupal::configFactory()->getEditable('shield.settings');
+  if (is_null($editable->get('paths'))) {
+    $editable->set('paths', '');
+  }
+  if ($editable->get('path') !== NULL) {
+    $editable->clear('path')->save(TRUE);
+  }
 }

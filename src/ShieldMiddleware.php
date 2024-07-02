@@ -107,14 +107,7 @@ class ShieldMiddleware implements HttpKernelInterface {
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   Request stack.
    */
-  public function __construct(HttpKernelInterface $http_kernel,
-                              ConfigFactoryInterface $config_factory,
-                              EntityTypeManagerInterface $entity_type_manager,
-                              PathMatcherInterface $path_matcher,
-                              AliasManagerInterface $path_alias_manager,
-                              LanguageManagerInterface $language_manager,
-                              ModuleHandlerInterface $module_handler,
-                              RequestStack $requestStack) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManagerInterface $path_alias_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, RequestStack $requestStack) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
     $this->entityTypeManager = $entity_type_manager;
@@ -341,7 +334,8 @@ class ShieldMiddleware implements HttpKernelInterface {
       $this->requestStack->push($request);
       try {
         $authenticate = $basicAuthService->authenticate($request);
-      } catch (\Exception $e) {
+      }
+      catch (\Exception $e) {
         // Do nothing.
       }
       if ($authenticate) {
