@@ -161,7 +161,7 @@ class ShieldSettingsForm extends ConfigFormBase {
       }
     }
 
-    if ($credential_provider == 'shield') {
+    if (($credential_provider == 'shield') or (!isset($credential_provider))) {
       $form['credentials']['providers']['shield']['user'] = [
         '#type' => 'textfield',
         '#title' => $this->t('User'),
