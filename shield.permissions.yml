@@ -1,3 +1,4 @@
 administer shield:
   title: 'Administer shield module'
-  description: 'Perform administration tasks for shield module.'
+  description: 'Perform administration tasks for shield module. This includes disabling the shield, viewing the configured credentials in plain text and configuring the exceptions that bypass it.'
+  restrict access: true
