@@ -9,6 +9,7 @@ use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Path\PathMatcherInterface;
 use Drupal\path_alias\AliasManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -88,6 +89,13 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $requestStack;
 
   /**
+   * The shield logger channel.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
    * Constructs a ShieldMiddleware object.
    *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
@@ -106,8 +114,11 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   The module handler.
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   Request stack.
+   * @param \Psr\Log\LoggerInterface|null $logger
+   *   The shield logger channel. Omitting it is deprecated in shield:8.x-1.9
+   *   and it will be required in shield:2.0.0.
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManagerInterface $path_alias_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, RequestStack $requestStack) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManagerInterface $path_alias_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, RequestStack $requestStack, ?LoggerInterface $logger = NULL) {
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
     $this->entityTypeManager = $entity_type_manager;
@@ -116,6 +127,11 @@ class ShieldMiddleware implements HttpKernelInterface {
     $this->languageManager = $language_manager;
     $this->moduleHandler = $module_handler;
     $this->requestStack = $requestStack;
+    if ($logger === NULL) {
+      @trigger_error('Calling ' . __METHOD__ . '() without the $logger argument is deprecated in shield:8.x-1.9 and will be required in shield:2.0.0. See https://www.drupal.org/node/3266227', E_USER_DEPRECATED);
+      $logger = \Drupal::service('logger.channel.shield');
+    }
+    $this->logger = $logger;
   }
 
   /**
@@ -161,12 +177,6 @@ class ShieldMiddleware implements HttpKernelInterface {
         $request->headers->set('X-Shield-Status', 'skipped (ip)');
         return $this->bypass($request, $type, $catch);
       }
-    }
-
-    if ($config->get('log_ipaddr')) {
-      $tmp = ['File'=>__FILE__,'Line'=>__LINE__,'ip_addr'=>$request->getClientIp()];
-      \Drupal::logger('Shield')
-        ->notice('<pre>' . print_r($tmp, TRUE) . '</pre>');
     }
 
     // Bypass as the domain is allowed.
@@ -222,6 +232,13 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
     if (isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass)) {
       $request->headers->set('X-Shield-Status', 'authenticated');
+      if ($config->get('log_authentication')) {
+        $this->logger->notice('Authenticated %user from %ip on %path.', [
+          '%user' => $user,
+          '%ip' => $request->getClientIp(),
+          '%path' => $request->getPathInfo(),
+        ]);
+      }
       return $this->bypass($request, $type, $catch);
     }
 
