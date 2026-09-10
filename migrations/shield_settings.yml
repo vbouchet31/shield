@@ -31,8 +31,8 @@ process:
     map:
       1: true
     default_value: false
-# 'method' field in D7 has values 1 and 2 for 'disabled' and 'enabled'
-# respectively, whereas in D9 those are 0 and 1.
+  # 'method' field in D7 has values 1 and 2 for 'disabled' and 'enabled'
+  # respectively, whereas in D9 those are 0 and 1.
   method:
     plugin: static_map
     source: 'shield_method'

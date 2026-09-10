@@ -4,12 +4,14 @@ namespace Drupal\Tests\shield\Functional;
 
 use Drupal\key\Entity\Key;
 use Drupal\Tests\BrowserTestBase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests Shield module.
  *
  * @group shield
  */
+#[RunTestsInSeparateProcesses]
 class ShieldTest extends BrowserTestBase {
 
   /**

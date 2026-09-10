@@ -12,7 +12,7 @@ function shield_update_8001() {
   $config = \Drupal::configFactory()->getEditable('shield.settings');
   $allow_cli = (bool) $config->get('allow_cli');
   $config->set('allow_cli', $allow_cli);
-  $config->save(TRUE);
+  $config->save();
 }
 
 /**
@@ -36,7 +36,7 @@ function shield_update_8002() {
     ->set('credentials.shield.pass', $pass ?? '')
     ->clear('user')
     ->clear('pass')
-    ->save(TRUE);
+    ->save();
 
   // The override in settings.php still targets the old keys, which no longer
   // exist. Tell the site owner to move it, and note that the credentials have
@@ -82,14 +82,16 @@ function shield_update_8003() {
 }
 
 /**
- * Convert whitelist to allowlist.
+ * Rename the legacy IP list setting to 'allowlist'.
  */
 function shield_update_8004() {
   $config = \Drupal::configFactory()->getEditable('shield.settings');
   $config
+    // cspell:disable-next-line
     ->set('allowlist', $config->get('whitelist'))
+    // cspell:disable-next-line
     ->clear('whitelist')
-    ->save(TRUE);
+    ->save();
 }
 
 /**
@@ -111,7 +113,7 @@ function shield_update_8005() {
   if (is_null($config->get('unset_basic_auth_headers'))) {
     $editable->set('unset_basic_auth_headers', TRUE);
   }
-  $editable->save(TRUE);
+  $editable->save();
 }
 
 /**
@@ -123,7 +125,7 @@ function shield_update_8006() {
   if (is_null($config->get('debug_header'))) {
     \Drupal::configFactory()->getEditable('shield.settings')
       ->set('debug_header', FALSE)
-      ->save(TRUE);
+      ->save();
   }
 }
 
@@ -139,7 +141,7 @@ function shield_update_8007() {
   && empty($config->get('credentials.shield.user'))) {
     \Drupal::configFactory()->getEditable('shield.settings')
       ->set('shield_enable', FALSE)
-      ->save(TRUE);
+      ->save();
   }
 }
 
@@ -152,7 +154,7 @@ function shield_update_8008() {
     $editable->set('paths', '');
   }
   if ($editable->get('path') !== NULL) {
-    $editable->clear('path')->save(TRUE);
+    $editable->clear('path')->save();
   }
 }
 
@@ -176,7 +178,7 @@ function shield_update_8009() {
     ->set('credentials.shield.user', $effective->get('user'))
     ->set('credentials.shield.pass', $effective->get('pass') ?? '')
     ->set('shield_enable', TRUE)
-    ->save(TRUE);
+    ->save();
 
   return t('Shield credentials were still being overridden in settings.php under the removed user and pass keys, so the site was left unprotected. They have been copied into the shield.settings configuration and Shield has been re-enabled. Move the override to the credentials.shield.user and credentials.shield.pass keys, then clear the copied values from active configuration.');
 }

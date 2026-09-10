@@ -3,12 +3,14 @@
 namespace Drupal\Tests\shield\Kernel;
 
 use Drupal\Tests\migrate_drupal\Kernel\d7\MigrateDrupal7TestBase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests shield config migration.
  *
  * @group shield
  */
+#[RunTestsInSeparateProcesses]
 class ShieldMigrateTest extends MigrateDrupal7TestBase {
 
   /**

@@ -3,12 +3,14 @@
 namespace Drupal\Tests\shield\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the Shield update path.
  *
  * @group shield
  */
+#[RunTestsInSeparateProcesses]
 class ShieldUpdateTest extends KernelTestBase {
 
   /**

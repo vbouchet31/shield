@@ -174,6 +174,7 @@ class ShieldMiddleware implements HttpKernelInterface {
 
     // Check if user has provided credentials.
     $user = NULL;
+    $pass = NULL;
     switch ($config->get('credential_provider')) {
       case 'shield':
         $user = $config->get('credentials.shield.user');
@@ -204,17 +205,21 @@ class ShieldMiddleware implements HttpKernelInterface {
         }
         break;
     }
+    $input_user = NULL;
+    $input_pass = NULL;
     if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
       $input_user = $request->server->get('PHP_AUTH_USER');
       $input_pass = $request->server->get('PHP_AUTH_PW');
     }
     elseif (!empty($request->server->get('HTTP_AUTHORIZATION'))) {
-      [$input_user, $input_pass] = explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2);
+      // A header without a colon yields a single element, so pad the result
+      // rather than leaving $input_pass undefined.
+      [$input_user, $input_pass] = array_pad(explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2), 2, NULL);
     }
     elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
-      [$input_user, $input_pass] = explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2);
+      [$input_user, $input_pass] = array_pad(explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2), 2, NULL);
     }
-    if (isset($input_user) && $input_user === $user && hash_equals($pass, $input_pass)) {
+    if ($input_user !== NULL && $input_pass !== NULL && $pass !== NULL && $input_user === $user && hash_equals($pass, $input_pass)) {
       $request->headers->set('X-Shield-Status', 'authenticated');
       return $this->bypass($request, $type, $catch);
     }
@@ -222,8 +227,8 @@ class ShieldMiddleware implements HttpKernelInterface {
     $response = new Response();
     $response->headers->add([
       'WWW-Authenticate' => 'Basic realm="' . strtr($config->get('print'), [
-        '[user]' => $user,
-        '[pass]' => $pass,
+        '[user]' => $user ?? '',
+        '[pass]' => $pass ?? '',
       ]) . '"',
     ]);
     if ($config->get('debug_header')) {
@@ -323,10 +328,21 @@ class ShieldMiddleware implements HttpKernelInterface {
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   Request object on which headers will be modified.
+   *
+   * @return bool
+   *   TRUE if basic_auth accepts the credentials the request carries.
    */
   private function basicAuthRequestAuthenticate(Request $request) {
+    // basic_auth is an optional dependency: its service does not exist unless
+    // that module is installed, so the provider cannot be injected and is
+    // looked up here instead. Every caller has already checked
+    // moduleExists('basic_auth').
+    // phpcs:disable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
     /** @var \Drupal\basic_auth\Authentication\Provider\BasicAuth $basicAuthService */
+    // @phpstan-ignore-next-line
     $basicAuthService = \Drupal::service('basic_auth.authentication.basic_auth');
+    // phpcs:enable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
+    $authenticate = FALSE;
     // Check for empty username and password in case of shield disabled.
     if ($basicAuthService->applies($request)) {
       // We need to push the current request to the request stack because

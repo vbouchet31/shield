@@ -43,7 +43,7 @@ class ShieldSettingsForm extends ConfigFormBase {
    * @param \Drupal\key\Plugin\KeyPluginManager|null $keyTypeManager
    *   The key plugin manager.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, ModuleHandlerInterface $moduleHandler, KeyPluginManager $keyTypeManager = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, ModuleHandlerInterface $moduleHandler, ?KeyPluginManager $keyTypeManager = NULL) {
     parent::__construct($config_factory, $typedConfigManager);
     $this->moduleHandler = $moduleHandler;
     $this->keyTypeManager = $keyTypeManager;
@@ -137,7 +137,7 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#type' => 'select',
       '#title' => $this->t('Credential provider'),
       '#options' => [
-        'shield' => 'Shield',
+        'shield' => $this->t('Shield'),
       ],
       '#default_value' => $credential_provider,
       '#ajax' => [
