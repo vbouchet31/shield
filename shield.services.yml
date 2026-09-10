@@ -9,14 +9,10 @@ services:
       - '@language_manager'
       - '@module_handler'
       - '@request_stack'
-      - '@logger.channel.shield'
     tags:
       # Ensure to come before page caching, so you don't serve cached pages to
       # banned users.
       - { name: http_middleware, priority: 250 }
-  logger.channel.shield:
-    parent: logger.channel_base
-    arguments: ['shield']
   shield.response_subscriber:
     class: Drupal\shield\EventSubscriber\ShieldSubscriber
     arguments: ['@config.factory']

@@ -118,11 +118,11 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('debug_header'),
     ];
 
-    $form['general']['log_authentication'] = [
+    $form['general']['log_ipaddr'] = [
       '#type' => 'checkbox',
-      '#title' => $this->t('Log successful authentications'),
-      '#description' => $this->t('Record a log entry with the user name, client IP address and requested path every time a visitor passes the Shield credentials prompt. Requests that skip Shield entirely (allowed paths, IP addresses, domains, HTTP methods or the command line) are not logged.'),
-      '#default_value' => $shield_config->get('log_authentication'),
+      '#title' => $this->t('Log all IP addresses'),
+      '#description' => $this->t('Log all IP addresses'),
+      '#default_value' => $shield_config->get('log_ipaddr'),
     ];
 
     $form['credentials'] = [
@@ -307,10 +307,6 @@ class ShieldSettingsForm extends ConfigFormBase {
         'general',
         'debug_header',
       ]))
-      ->set('log_authentication', $form_state->getValue([
-        'general',
-        'log_authentication',
-      ]))
       ->set('allow_cli', $form_state->getValue([
         'exceptions',
         'shield_allow_cli',
@@ -333,6 +329,10 @@ class ShieldSettingsForm extends ConfigFormBase {
         'exceptions',
         'paths',
         'shield_paths',
+      ]))
+      ->set('log_ipaddr', $form_state->getValue([
+	      'general',
+	      'log_ipaddr',
       ]))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([
