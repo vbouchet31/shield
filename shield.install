@@ -19,14 +19,31 @@ function shield_update_8001() {
  * Convert user and pass config to credential provider config.
  */
 function shield_update_8002() {
+  // Read the currently effective values, not just the stored ones: sites
+  // commonly keep the credentials out of exported config by overriding them in
+  // settings.php. getEditable() ignores those overrides, so migrating from it
+  // would silently drop the credentials and leave the site unprotected.
+  $effective = \Drupal::configFactory()->get('shield.settings');
+  $user = $effective->get('user');
+  $pass = $effective->get('pass');
+
   $config = \Drupal::configFactory()->getEditable('shield.settings');
+  $stored_user = $config->get('user');
+
   $config
     ->set('credential_provider', 'shield')
-    ->set('credentials.shield.user', $config->get('user'))
-    ->set('credentials.shield.pass', $config->get('pass'))
+    ->set('credentials.shield.user', $user ?? '')
+    ->set('credentials.shield.pass', $pass ?? '')
     ->clear('user')
     ->clear('pass')
     ->save(TRUE);
+
+  // The override in settings.php still targets the old keys, which no longer
+  // exist. Tell the site owner to move it, and note that the credentials have
+  // been copied into active config so that the site is not left unprotected.
+  if (!empty($user) && empty($stored_user)) {
+    return t('Shield credentials were being overridden in settings.php and have been copied into the shield.settings configuration so that the site is not left unprotected. Move the override to the credentials.shield.user and credentials.shield.pass keys, then clear the copied values from active configuration.');
+  }
 }
 
 /**
@@ -137,4 +154,29 @@ function shield_update_8008() {
   if ($editable->get('path') !== NULL) {
     $editable->clear('path')->save(TRUE);
   }
+}
+
+/**
+ * Recover credentials left behind by a stale settings.php override.
+ */
+function shield_update_8009() {
+  // shield_update_8002() used to read the credentials without applying config
+  // overrides, so sites that set 'user' and 'pass' in settings.php had them
+  // dropped and were silently left unprotected. Those overrides still resolve
+  // against the old keys, so an effective value there is a reliable marker.
+  $effective = \Drupal::configFactory()->get('shield.settings');
+
+  if ($effective->get('credential_provider') !== 'shield'
+    || !empty($effective->get('credentials.shield.user'))
+    || empty($effective->get('user'))) {
+    return NULL;
+  }
+
+  \Drupal::configFactory()->getEditable('shield.settings')
+    ->set('credentials.shield.user', $effective->get('user'))
+    ->set('credentials.shield.pass', $effective->get('pass') ?? '')
+    ->set('shield_enable', TRUE)
+    ->save(TRUE);
+
+  return t('Shield credentials were still being overridden in settings.php under the removed user and pass keys, so the site was left unprotected. They have been copied into the shield.settings configuration and Shield has been re-enabled. Move the override to the credentials.shield.user and credentials.shield.pass keys, then clear the copied values from active configuration.');
 }
