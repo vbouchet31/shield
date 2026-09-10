@@ -118,13 +118,6 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('debug_header'),
     ];
 
-    $form['general']['log_ipaddr'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Log all IP addresses'),
-      '#description' => $this->t('Log all IP addresses'),
-      '#default_value' => $shield_config->get('log_ipaddr'),
-    ];
-
     $form['credentials'] = [
       '#id' => 'credentials',
       '#type' => 'details',
@@ -329,10 +322,6 @@ class ShieldSettingsForm extends ConfigFormBase {
         'exceptions',
         'paths',
         'shield_paths',
-      ]))
-      ->set('log_ipaddr', $form_state->getValue([
-	      'general',
-	      'log_ipaddr',
       ]))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([
