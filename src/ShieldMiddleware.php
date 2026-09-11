@@ -172,6 +172,12 @@ class ShieldMiddleware implements HttpKernelInterface {
       }
     }
 
+    // Bypass as the user agent is allowed.
+    if ($this->checkUserAgentAllowed($request, $config)) {
+      $request->headers->set('X-Shield-Status', 'skipped (user agent)');
+      return $this->bypass($request, $type, $catch);
+    }
+
     // Check if user has provided credentials.
     $user = NULL;
     $pass = NULL;
@@ -357,6 +363,39 @@ class ShieldMiddleware implements HttpKernelInterface {
     $path_match = $this->pathMatcher->matchPath($path, $paths_to_check);
 
     return $path_match && $method == self::EXCLUDE_METHOD || !$path_match && $method == self::INCLUDE_METHOD;
+  }
+
+  /**
+   * Checks if the request user agent should be allowed to bypass shield.
+   *
+   * The user agent is supplied by the client and can be set to anything, so
+   * this is a convenience for letting well behaved crawlers through, not a
+   * security boundary.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The global request object.
+   * @param \Drupal\Core\Config\ImmutableConfig $config
+   *   The current Shield config.
+   *
+   * @return bool
+   *   TRUE if the request user agent should be bypassed, and FALSE if not.
+   */
+  public function checkUserAgentAllowed(Request $request, ImmutableConfig $config) {
+    $user_agent = $request->headers->get('User-Agent');
+    $allowlist = (string) $config->get('user_agents');
+
+    if ($user_agent === NULL || $user_agent === '' || trim($allowlist) === '') {
+      return FALSE;
+    }
+
+    $patterns = array_filter(array_map('trim', explode("\n", $allowlist)), 'strlen');
+    foreach ($patterns as $pattern) {
+      if (stripos($user_agent, $pattern) !== FALSE) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**

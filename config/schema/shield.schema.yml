@@ -45,6 +45,9 @@ shield.settings:
     domains:
       type: text
       label: 'Bypass shield based on domain name'
+    user_agents:
+      type: text
+      label: 'Bypass shield based on the request user agent'
 
 shield.credentials.shield:
   type: mapping

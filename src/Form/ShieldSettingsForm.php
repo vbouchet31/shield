@@ -250,6 +250,16 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
     ];
 
+    $form['exceptions']['user_agents'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('User agent allowlist'),
+      '#description' => $this->t("Enter a list of user agent strings for which shield should not be shown, one per line. A request is allowed through when its user agent contains one of these strings, matched case-insensitively.<br><em>Warning: the user agent is sent by the client and can be set to any value. @strong_style_tag Anyone can bypass the shield by claiming one of these user agents, so only use this for convenience, never as a security measure.</strong></em>", [
+        '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
+      ]),
+      '#default_value' => $shield_config->get('user_agents'),
+      '#placeholder' => $this->t("Example:\nfacebookexternalhit\nTwitterbot"),
+    ];
+
     $form['exceptions']['paths'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Paths'),
@@ -322,6 +332,10 @@ class ShieldSettingsForm extends ConfigFormBase {
         'exceptions',
         'paths',
         'shield_paths',
+      ]))
+      ->set('user_agents', $form_state->getValue([
+        'exceptions',
+        'user_agents',
       ]))
       ->set('credential_provider', $credential_provider);
     $credentials = $form_state->getValue([

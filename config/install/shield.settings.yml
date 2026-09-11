@@ -13,6 +13,7 @@ print: 'Hello!'
 debug_header: false
 allowlist: ''
 domains: ''
+user_agents: ''
 method: 0
 paths: ''
 http_method_allowlist: []

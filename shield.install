@@ -182,3 +182,16 @@ function shield_update_8009() {
 
   return t('Shield credentials were still being overridden in settings.php under the removed user and pass keys, so the site was left unprotected. They have been copied into the shield.settings configuration and Shield has been re-enabled. Move the override to the credentials.shield.user and credentials.shield.pass keys, then clear the copied values from active configuration.');
 }
+
+/**
+ * Add the user_agents config.
+ */
+function shield_update_8010() {
+  $config = \Drupal::configFactory()->get('shield.settings');
+
+  if (is_null($config->get('user_agents'))) {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->set('user_agents', '')
+      ->save(TRUE);
+  }
+}

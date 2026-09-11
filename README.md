@@ -42,6 +42,13 @@ details.
 Allow specific domains to be publicly accessible. Typical use case is to allow
 front-office domain so the back-office domain remains protected.
 
+#### User agent
+Allow requests whose user agent contains one of the configured strings, matched
+case-insensitively. The typical use case is letting crawlers such as
+`facebookexternalhit` reach the pages they need to scrape. Note that the user
+agent is sent by the client and can be set to any value, so this is a
+convenience for well behaved crawlers, not a security measure.
+
 #### Paths
 Allow specific path to be accessed without Shield being prompted (exclude mode)
 or protect only specific path (include mode).
@@ -69,6 +76,8 @@ a subrequest and shield does handle it)
 allowed)
 - `skipped (path)` (HTTP 200, basic auth not prompted because the path is
 allowed)
+- `skipped (user agent)` (HTTP 200, basic auth not prompted because the user
+agent of the request is allowed)
 
 ### Troubleshooting
 
