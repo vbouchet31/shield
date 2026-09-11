@@ -89,9 +89,7 @@ function shield_update_8003() {
 function shield_update_8004() {
   $config = \Drupal::configFactory()->getEditable('shield.settings');
   $config
-    // cspell:disable-next-line
     ->set('allowlist', $config->get('whitelist'))
-    // cspell:disable-next-line
     ->clear('whitelist')
     ->save();
 }
@@ -195,5 +193,15 @@ function shield_update_8010() {
     \Drupal::configFactory()->getEditable('shield.settings')
       ->set('user_agents', '')
       ->save(TRUE);
+  }
+}
+
+/**
+ * Set the default value for the new log_authentication setting.
+ */
+function shield_update_8011() {
+  $config = \Drupal::configFactory()->getEditable('shield.settings');
+  if ($config->get('log_authentication') === NULL) {
+    $config->set('log_authentication', FALSE)->save(TRUE);
   }
 }

@@ -21,6 +21,9 @@ shield.settings:
     debug_header:
       type: boolean
       label: 'Add a custom header in response to indicate shield status.'
+    log_authentication:
+      type: boolean
+      label: 'Log successful Shield authentications.'
     unset_basic_auth_headers:
       type: boolean
       label: 'Unset basic_auth headers to avoid conflicts.'

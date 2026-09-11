@@ -11,6 +11,7 @@ credentials:
     user_pass_key: ''
 print: 'Hello!'
 debug_header: false
+log_authentication: false
 allowlist: ''
 domains: ''
 domains_method: 0

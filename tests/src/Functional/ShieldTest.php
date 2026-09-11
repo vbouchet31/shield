@@ -21,6 +21,7 @@ class ShieldTest extends BrowserTestBase {
     'shield',
     'key',
     'basic_auth',
+    'dblog',
   ];
 
   /**
@@ -286,6 +287,71 @@ class ShieldTest extends BrowserTestBase {
 
     $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
     $this->assertSession()->statusCodeEquals(403);
+  }
+
+  /**
+   * Validate successful authentications are only logged when configured.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldAuthenticationLogging() {
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    // The login form is requested throughout, as it is served directly: a
+    // path that redirects would be counted as two authenticated requests.
+    $path = 'user/login';
+    $credentials = ['Authorization' => 'Basic ' . base64_encode('user:password')];
+
+    // Nothing is logged while the option is off, whether the credentials are
+    // accepted or rejected.
+    $this->drupalGet($path);
+    $this->assertSession()->statusCodeEquals(401);
+    $this->drupalGet($path, [], $credentials);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSame([], $this->getShieldLogEntries());
+
+    $this->config('shield.settings')->set('log_authentication', TRUE)->save();
+
+    // A rejected request is still not logged.
+    $this->drupalGet($path, [], ['Authorization' => 'Basic ' . base64_encode('user:wrong')]);
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSame([], $this->getShieldLogEntries());
+
+    // A successful authentication records the user, IP address and path.
+    $this->drupalGet($path, [], $credentials);
+    $this->assertSession()->statusCodeEquals(200);
+    $entries = $this->getShieldLogEntries();
+    $this->assertCount(1, $entries);
+    $this->assertSame('Authenticated %user from %ip on %path.', $entries[0]->message);
+    $variables = unserialize($entries[0]->variables, ['allowed_classes' => FALSE]);
+    $this->assertSame('user', $variables['%user']);
+    $this->assertSame('/' . $path, $variables['%path']);
+    // The address the test runner reaches the site from depends on the
+    // environment, so only assert that a usable one was recorded.
+    $client_ip = $variables['%ip'];
+    $this->assertNotFalse(filter_var($client_ip, FILTER_VALIDATE_IP));
+
+    // A request allowed through by an exception option is not logged, even
+    // though it carries valid credentials.
+    $this->config('shield.settings')->set('allowlist', $client_ip)->save();
+    $this->drupalGet($path, [], $credentials);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (ip)');
+    $this->assertCount(1, $this->getShieldLogEntries());
+  }
+
+  /**
+   * Returns the log entries Shield has recorded, oldest first.
+   *
+   * @return object[]
+   *   The watchdog rows of the shield channel.
+   */
+  protected function getShieldLogEntries() {
+    return \Drupal::database()->select('watchdog', 'w')
+      ->fields('w', ['message', 'variables'])
+      ->condition('type', 'shield')
+      ->orderBy('wid')
+      ->execute()
+      ->fetchAll();
   }
 
 }

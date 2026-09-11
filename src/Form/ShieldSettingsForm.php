@@ -118,6 +118,13 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('debug_header'),
     ];
 
+    $form['general']['log_authentication'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Log successful authentications'),
+      '#description' => $this->t('Record a log entry with the user name, client IP address and requested path every time a visitor passes the Shield credentials prompt. Requests that skip Shield entirely (allowed paths, IP addresses, domains, HTTP methods or the command line) are not logged.'),
+      '#default_value' => $shield_config->get('log_authentication'),
+    ];
+
     $form['credentials'] = [
       '#id' => 'credentials',
       '#type' => 'details',
@@ -356,6 +363,10 @@ class ShieldSettingsForm extends ConfigFormBase {
       ->set('debug_header', $form_state->getValue([
         'general',
         'debug_header',
+      ]))
+      ->set('log_authentication', $form_state->getValue([
+        'general',
+        'log_authentication',
       ]))
       ->set('allow_cli', $form_state->getValue([
         'exceptions',

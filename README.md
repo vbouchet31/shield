@@ -116,6 +116,19 @@ fastcgi_param HTTP_AUTHORIZATION $http_authorization;
 
 See [issue 2902135](https://www.drupal.org/project/shield/issues/2902135).
 
+#### Authentication logging
+"Log successful authentications" records a log entry in the `shield` channel
+every time a visitor passes the credentials prompt, containing the user name
+they authenticated with, their client IP address and the requested path. It is
+disabled by default.
+
+Only successful authentications are logged. Requests that never reach the
+prompt because an exception option let them through -- an allowed path, IP
+address, domain or HTTP method, or command line access -- produce no log entry;
+use the debug header above to diagnose those. Failed attempts are not logged
+either, as an unauthenticated visitor's first request to any page is expected
+to be rejected.
+
 ### Configuration via settings.php
 
 The shield module can be configured via settings.php. This allows
