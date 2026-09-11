@@ -301,6 +301,15 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('paths'),
     ];
 
+    if ($this->moduleHandler->moduleExists('basic_auth')) {
+      $form['exceptions']['basic_auth_bypass'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Allow HTTP basic authentication'),
+        '#description' => $this->t('Let a request pass Shield when it carries the user name and password of an active Drupal account, instead of the Shield credentials. Intended for REST and other web service clients, which can only send one set of credentials. The credentials are verified by the HTTP Basic Authentication module, so the usual flood control and blocked account rules apply. <strong>Every account on the site can open the shield when this is enabled, so it is only as strong as the weakest user password.</strong>'),
+        '#default_value' => $shield_config->get('basic_auth_bypass'),
+      ];
+    }
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -402,6 +411,14 @@ class ShieldSettingsForm extends ConfigFormBase {
         'user_agents',
       ]))
       ->set('credential_provider', $credential_provider);
+    // The checkbox is only built when basic_auth is installed; leave the
+    // stored value alone otherwise.
+    if ($this->moduleHandler->moduleExists('basic_auth')) {
+      $shield_config->set('basic_auth_bypass', $form_state->getValue([
+        'exceptions',
+        'basic_auth_bypass',
+      ]));
+    }
     $credentials = $form_state->getValue([
       'credentials',
       'providers',

@@ -27,6 +27,9 @@ shield.settings:
     unset_basic_auth_headers:
       type: boolean
       label: 'Unset basic_auth headers to avoid conflicts.'
+    basic_auth_bypass:
+      type: boolean
+      label: 'Let requests authenticated by basic_auth pass Shield.'
     print:
       type: string
       label: 'The greeting text, [user] and [pass] tokens are usable.'

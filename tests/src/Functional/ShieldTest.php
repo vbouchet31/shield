@@ -22,6 +22,10 @@ class ShieldTest extends BrowserTestBase {
     'key',
     'basic_auth',
     'dblog',
+    // Provides router_test.11, a route that opts into basic_auth. Core's own
+    // BasicAuthTest uses it for the same reason: basic_auth is not a global
+    // authentication provider, so it never applies to ordinary HTML routes.
+    'router_test',
   ];
 
   /**
@@ -287,6 +291,69 @@ class ShieldTest extends BrowserTestBase {
 
     $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
     $this->assertSession()->statusCodeEquals(403);
+  }
+
+  /**
+   * Validate the basic_auth bypass is off unless it is configured on.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldBasicAuthBypass() {
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+    $account = $this->drupalCreateUser();
+    $credentials = [
+      'Authorization' => 'Basic ' . base64_encode($account->getAccountName() . ':' . $account->passRaw),
+    ];
+
+    // A Drupal account is not a Shield credential by default.
+    $this->drupalGet('router_test/test11', [], $credentials);
+    $this->assertSession()->statusCodeEquals(401);
+
+    $this->config('shield.settings')->set('basic_auth_bypass', TRUE)->save();
+
+    // With the option on the account passes Shield, and basic_auth then logs
+    // it in: the route requires an authenticated user and prints its name.
+    $this->drupalGet('router_test/test11', [], $credentials);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (basic auth)');
+    $this->assertSession()->pageTextContains($account->getAccountName());
+
+    // The Shield credentials keep working alongside it.
+    $this->drupalGet('<front>', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'authenticated');
+
+    // A wrong password is still rejected by Shield, not passed through.
+    $this->drupalGet('<front>', [], [
+      'Authorization' => 'Basic ' . base64_encode($account->getAccountName() . ':wrong'),
+    ]);
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
+  }
+
+  /**
+   * Validate a blocked account cannot open the shield.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldBasicAuthBypassBlockedAccount() {
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('basic_auth_bypass', TRUE)
+      ->save();
+
+    $account = $this->drupalCreateUser();
+    $credentials = [
+      'Authorization' => 'Basic ' . base64_encode($account->getAccountName() . ':' . $account->passRaw),
+    ];
+    $this->drupalGet('router_test/test11', [], $credentials);
+    $this->assertSession()->statusCodeEquals(200);
+
+    $account->block()->save();
+
+    $this->drupalGet('router_test/test11', [], $credentials);
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
   }
 
   /**

@@ -21,3 +21,4 @@ paths: ''
 http_method_allowlist: []
 allow_cli: true
 unset_basic_auth_headers: true
+basic_auth_bypass: false

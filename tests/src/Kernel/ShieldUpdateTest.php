@@ -121,4 +121,30 @@ class ShieldUpdateTest extends KernelTestBase {
     $this->assertTrue($config->get('shield_enable'));
   }
 
+  /**
+   * The basic_auth bypass defaults to off on an existing site.
+   */
+  public function testBasicAuthBypassDefaultsToOff(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->clear('basic_auth_bypass')
+      ->save(TRUE);
+
+    shield_update_8012();
+
+    $this->assertFalse(\Drupal::configFactory()->get('shield.settings')->get('basic_auth_bypass'));
+  }
+
+  /**
+   * The update leaves a site that already opted in alone.
+   */
+  public function testBasicAuthBypassUpdateKeepsExistingValue(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->set('basic_auth_bypass', TRUE)
+      ->save(TRUE);
+
+    shield_update_8012();
+
+    $this->assertTrue(\Drupal::configFactory()->get('shield.settings')->get('basic_auth_bypass'));
+  }
+
 }

@@ -205,3 +205,13 @@ function shield_update_8011() {
     $config->set('log_authentication', FALSE)->save(TRUE);
   }
 }
+
+/**
+ * Set the default value for the new basic_auth_bypass setting.
+ */
+function shield_update_8012() {
+  $config = \Drupal::configFactory()->getEditable('shield.settings');
+  if ($config->get('basic_auth_bypass') === NULL) {
+    $config->set('basic_auth_bypass', FALSE)->save(TRUE);
+  }
+}

@@ -96,6 +96,13 @@ class ShieldMiddleware implements HttpKernelInterface {
   protected $logger;
 
   /**
+   * Basic auth results of the requests seen so far, keyed by object id.
+   *
+   * @var bool[]
+   */
+  protected $basicAuthResults = [];
+
+  /**
    * Constructs a ShieldMiddleware object.
    *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
@@ -234,6 +241,17 @@ class ShieldMiddleware implements HttpKernelInterface {
           '%path' => $request->getPathInfo(),
         ]);
       }
+      return $this->bypass($request, $type, $catch);
+    }
+
+    // Let a request through that carries the credentials of a Drupal account,
+    // if the site opted in. Core's basic_auth provider performs the check, so
+    // flood control, blocked accounts and password hashing are all handled
+    // there rather than reimplemented here.
+    if ($config->get('basic_auth_bypass')
+      && $this->moduleHandler->moduleExists('basic_auth')
+      && $this->basicAuthRequestAuthenticate($request)) {
+      $request->headers->set('X-Shield-Status', 'skipped (basic auth)');
       return $this->bypass($request, $type, $catch);
     }
 
@@ -457,9 +475,19 @@ class ShieldMiddleware implements HttpKernelInterface {
    *   Request object on which headers will be modified.
    *
    * @return bool
-   *   TRUE if basic_auth accepts the credentials the request carries.
+   *   TRUE if the request carries the credentials of a Drupal account that
+   *   core's basic_auth provider accepts, FALSE otherwise.
    */
   private function basicAuthRequestAuthenticate(Request $request) {
+    // A request is checked at most once: the bypass in handle() and the header
+    // unsetting in bypass() both need the answer, and repeating the check
+    // would cost a second password hash and a second flood event.
+    $key = spl_object_id($request);
+    if (isset($this->basicAuthResults[$key])) {
+      return $this->basicAuthResults[$key];
+    }
+    $this->basicAuthResults[$key] = FALSE;
+
     // basic_auth is an optional dependency: its service does not exist unless
     // that module is installed, so the provider cannot be injected and is
     // looked up here instead. Every caller has already checked
@@ -510,6 +538,7 @@ class ShieldMiddleware implements HttpKernelInterface {
       if ($authenticate) {
         // Reset request stack, as we don't need it anymore.
         $this->requestStack->pop();
+        $this->basicAuthResults[$key] = TRUE;
         return TRUE;
       }
       $this->requestStack->pop();

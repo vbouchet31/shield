@@ -57,6 +57,25 @@ convenience for well behaved crawlers, not a security measure.
 Allow specific path to be accessed without Shield being prompted (exclude mode)
 or protect only specific path (include mode).
 
+#### HTTP basic authentication
+A browser or an HTTP client can only send one set of basic auth credentials,
+so a REST or web service client that authenticates against Drupal with the
+[HTTP Basic Authentication](https://www.drupal.org/docs/8/core/modules/basic_auth)
+module has no way to also send the Shield credentials, and Shield rejects it
+with a 401.
+
+"Allow HTTP basic authentication" resolves that: a request that carries the
+user name and password of an active Drupal account passes Shield, and
+`basic_auth` then logs that account in as usual. The credentials are verified
+by `basic_auth` itself, so core's flood control, blocked account handling and
+password hashing all apply. The option only appears when the HTTP Basic
+Authentication module is installed, and it is **disabled by default**.
+
+Enabling it means every account on the site can open the shield, so the site
+is only as protected as the weakest user password on it. Where the goal is to
+expose a fixed set of service endpoints, allowing those paths (see above) is
+the narrower option.
+
 ### Misc.
 
 #### Debug header
@@ -82,6 +101,9 @@ allowed)
 allowed)
 - `skipped (user agent)` (HTTP 200, basic auth not prompted because the user
 agent of the request is allowed)
+- `skipped (basic auth)` (HTTP 200, basic auth not prompted because the
+request authenticated as a Drupal user and "Allow HTTP basic authentication"
+is checked)
 
 ### Troubleshooting
 
