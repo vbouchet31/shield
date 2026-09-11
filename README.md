@@ -70,6 +70,39 @@ allowed)
 - `skipped (path)` (HTTP 200, basic auth not prompted because the path is
 allowed)
 
+### Troubleshooting
+
+#### The login prompt keeps reappearing with correct credentials
+
+PHP only fills `PHP_AUTH_USER` and `PHP_AUTH_PW` when it runs as an Apache
+module. On CGI, FastCGI and PHP-FPM setups - which most shared hosting uses -
+the web server has to forward the `Authorization` header itself, and Shield
+reads it back from `HTTP_AUTHORIZATION`, `REDIRECT_HTTP_AUTHORIZATION`,
+`REMOTE_USER` or `REDIRECT_REMOTE_USER`.
+
+Drupal core's `.htaccess` already forwards the header, but if it has been
+customized, or the site is not served by Apache, the header may never reach
+PHP. On Apache, add one of these rewrite rules:
+
+```apache
+RewriteCond %{HTTP:Authorization} .+
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%0]
+```
+
+or, if the host does not allow setting `HTTP_AUTHORIZATION`:
+
+```apache
+RewriteRule .* - [E=REMOTE_USER:%{HTTP:Authorization}]
+```
+
+On nginx, make sure the `Authorization` header is passed to PHP-FPM:
+
+```nginx
+fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+```
+
+See [issue 2902135](https://www.drupal.org/project/shield/issues/2902135).
+
 ### Configuration via settings.php
 
 The shield module can be configured via settings.php. This allows

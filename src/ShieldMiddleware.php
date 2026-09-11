@@ -205,21 +205,8 @@ class ShieldMiddleware implements HttpKernelInterface {
         }
         break;
     }
-    $input_user = NULL;
-    $input_pass = NULL;
-    if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
-      $input_user = $request->server->get('PHP_AUTH_USER');
-      $input_pass = $request->server->get('PHP_AUTH_PW');
-    }
-    elseif (!empty($request->server->get('HTTP_AUTHORIZATION'))) {
-      // A header without a colon yields a single element, so pad the result
-      // rather than leaving $input_pass undefined.
-      [$input_user, $input_pass] = array_pad(explode(':', base64_decode(substr($request->server->get('HTTP_AUTHORIZATION'), 6)), 2), 2, NULL);
-    }
-    elseif (!empty($request->server->get('REDIRECT_HTTP_AUTHORIZATION'))) {
-      [$input_user, $input_pass] = array_pad(explode(':', base64_decode(substr($request->server->get('REDIRECT_HTTP_AUTHORIZATION'), 6)), 2), 2, NULL);
-    }
-    if ($input_user !== NULL && $input_pass !== NULL && $pass !== NULL && $input_user === $user && hash_equals($pass, $input_pass)) {
+    $credentials = $this->getRequestCredentials($request);
+    if ($credentials !== NULL && isset($user, $pass) && hash_equals($user, $credentials[0]) && hash_equals($pass, $credentials[1])) {
       $request->headers->set('X-Shield-Status', 'authenticated');
       return $this->bypass($request, $type, $catch);
     }
@@ -237,6 +224,57 @@ class ShieldMiddleware implements HttpKernelInterface {
 
     $response->setStatusCode(401);
     return $response;
+  }
+
+  /**
+   * Extracts the basic authentication credentials sent with the request.
+   *
+   * PHP only populates PHP_AUTH_USER and PHP_AUTH_PW when it runs as an Apache
+   * module. On CGI, FastCGI and FPM setups - which most shared hosting uses -
+   * the Authorization header has to be read back from wherever the web server
+   * left it, which is either HTTP_AUTHORIZATION, or the REDIRECT_ prefixed
+   * copy Apache creates for env variables set by a rewrite rule. Some hosts
+   * only allow the header to be forwarded in REMOTE_USER, so that variable is
+   * inspected as well.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request to read the credentials from.
+   *
+   * @return string[]|null
+   *   An indexed array holding the submitted user name and password, or NULL
+   *   if the request carries no basic authentication credentials.
+   *
+   * @see https://www.drupal.org/project/shield/issues/2902135
+   */
+  protected function getRequestCredentials(Request $request) {
+    if ($request->server->has('PHP_AUTH_USER') && $request->server->has('PHP_AUTH_PW')) {
+      return [
+        (string) $request->server->get('PHP_AUTH_USER'),
+        (string) $request->server->get('PHP_AUTH_PW'),
+      ];
+    }
+
+    $variables = [
+      'HTTP_AUTHORIZATION',
+      'REDIRECT_HTTP_AUTHORIZATION',
+      'REMOTE_USER',
+      'REDIRECT_REMOTE_USER',
+    ];
+    foreach ($variables as $variable) {
+      $header = $request->server->get($variable);
+      if (!is_string($header) || stripos($header, 'basic ') !== 0) {
+        continue;
+      }
+
+      $credentials = base64_decode(substr($header, 6), TRUE);
+      if ($credentials === FALSE || !str_contains($credentials, ':')) {
+        continue;
+      }
+
+      return explode(':', $credentials, 2);
+    }
+
+    return NULL;
   }
 
   /**
