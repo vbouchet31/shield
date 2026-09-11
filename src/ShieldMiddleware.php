@@ -194,7 +194,10 @@ class ShieldMiddleware implements HttpKernelInterface {
     $this->requestStack = $requestStack;
     if ($logger === NULL) {
       @trigger_error('Calling ' . __METHOD__ . '() without the $logger argument is deprecated in shield:8.x-1.9 and will be required in shield:2.0.0. See https://www.drupal.org/node/3266227', E_USER_DEPRECATED);
+      // phpcs:disable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
+      // @phpstan-ignore-next-line
       $logger = \Drupal::service('logger.channel.shield');
+      // phpcs:enable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
     }
     $this->logger = $logger;
   }

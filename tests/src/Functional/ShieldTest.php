@@ -322,6 +322,123 @@ class ShieldTest extends BrowserTestBase {
   }
 
   /**
+   * Validate the settings form round trip for the Key credential providers.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   */
+  public function testShieldSettingsFormKeyProviders() {
+    $assert_session = $this->assertSession();
+    $this->drupalLogin($this->drupalCreateUser(['administer shield']));
+
+    Key::create([
+      'id' => 'shield_auth',
+      'label' => 'Shield auth',
+      'key_type' => 'authentication',
+      'key_type_settings' => [],
+      'key_provider' => 'config',
+      'key_provider_settings' => [
+        'key_value' => 'key-secret',
+        'base64_encoded' => FALSE,
+      ],
+    ])->save();
+
+    // Both Key providers are offered, and the Shield fields show by default.
+    $this->drupalGet('admin/config/system/shield');
+    $assert_session->optionExists('credentials[credential_provider]', 'key');
+    $assert_session->optionExists('credentials[credential_provider]', 'multikey');
+    $assert_session->fieldValueEquals('credentials[credential_provider]', 'shield');
+    $assert_session->fieldExists('credentials[providers][shield][user]');
+
+    // The provider select is driven by Ajax, so switch it in configuration
+    // and check the form builds the matching fields with their defaults.
+    $this->config('shield.settings')
+      ->set('credential_provider', 'key')
+      ->set('credentials.key.user', 'keyuser')
+      ->set('credentials.key.pass_key', '')
+      ->save();
+    $this->drupalGet('admin/config/system/shield');
+    $assert_session->fieldValueEquals('credentials[credential_provider]', 'key');
+    $assert_session->fieldValueEquals('credentials[providers][key][user]', 'keyuser');
+    $assert_session->fieldNotExists('credentials[providers][shield][user]');
+    // Only authentication keys are offered for the password.
+    $assert_session->optionExists('credentials[providers][key][pass_key]', 'shield_auth');
+    $assert_session->optionNotExists('credentials[providers][key][pass_key]', 'shield_test');
+
+    // The password key is required.
+    $this->submitForm([], 'Save configuration');
+    $assert_session->pageTextContains('Password field is required.');
+
+    $this->submitForm([
+      'credentials[providers][key][user]' => 'keyuser',
+      'credentials[providers][key][pass_key]' => 'shield_auth',
+    ], 'Save configuration');
+    $assert_session->pageTextContains('The configuration options have been saved.');
+    $config = $this->config('shield.settings');
+    $this->assertSame('key', $config->get('credential_provider'));
+    $this->assertSame('keyuser', $config->get('credentials.key.user'));
+    $this->assertSame('shield_auth', $config->get('credentials.key.pass_key'));
+
+    // The saved configuration authenticates end to end. Shield is enabled
+    // outside the form so that the form's own redirect is not challenged.
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('keyuser:key-secret')]);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->responseHeaderEquals('X-Shield-Status', 'authenticated');
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
+    $assert_session->statusCodeEquals(401);
+
+    // The same for the user/password key provider.
+    $this->config('shield.settings')
+      ->set('shield_enable', FALSE)
+      ->set('credential_provider', 'multikey')
+      ->set('credentials.multikey.user_pass_key', '')
+      ->save();
+    $this->drupalGet('admin/config/system/shield');
+    $assert_session->fieldValueEquals('credentials[credential_provider]', 'multikey');
+    $assert_session->optionExists('credentials[providers][multikey][user_pass_key]', 'shield_test');
+    $assert_session->optionNotExists('credentials[providers][multikey][user_pass_key]', 'shield_auth');
+
+    $this->submitForm([
+      'credentials[providers][multikey][user_pass_key]' => 'shield_test',
+    ], 'Save configuration');
+    $assert_session->pageTextContains('The configuration options have been saved.');
+    $this->assertSame('multikey', $this->config('shield.settings')->get('credential_provider'));
+    $this->assertSame('shield_test', $this->config('shield.settings')->get('credentials.multikey.user_pass_key'));
+
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('drupal:rocks')]);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->responseHeaderEquals('X-Shield-Status', 'authenticated');
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('keyuser:key-secret')]);
+    $assert_session->statusCodeEquals(401);
+  }
+
+  /**
+   * Validate the form falls back to the Shield fields without a provider.
+   *
+   * Sites updated from before the credential providers existed can have no
+   * credential_provider value at all.
+   *
+   * @see https://www.drupal.org/project/shield/issues/3407823
+   */
+  public function testShieldSettingsFormWithoutProvider() {
+    $this->drupalLogin($this->drupalCreateUser(['administer shield']));
+    $this->config('shield.settings')->clear('credential_provider')->save();
+
+    $this->drupalGet('admin/config/system/shield');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->fieldValueEquals('credentials[providers][shield][user]', 'user');
+    $this->assertSession()->fieldValueEquals('credentials[providers][shield][pass]', 'password');
+
+    $this->submitForm([], 'Save configuration');
+    $this->assertSession()->pageTextContains('The configuration options have been saved.');
+    $this->assertSame('shield', $this->config('shield.settings')->get('credential_provider'));
+    $this->assertSame('user', $this->config('shield.settings')->get('credentials.shield.user'));
+  }
+
+  /**
    * Validate the Shield pages exclude/include feature.
    *
    * @throws \Behat\Mink\Exception\ExpectationException

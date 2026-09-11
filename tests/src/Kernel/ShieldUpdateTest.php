@@ -122,6 +122,58 @@ class ShieldUpdateTest extends KernelTestBase {
   }
 
   /**
+   * The user agent allowlist is added empty on an existing site.
+   */
+  public function testUserAgentsUpdateAddsEmptyList(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->clear('user_agents')
+      ->save();
+
+    shield_update_8010();
+
+    $this->assertSame('', \Drupal::configFactory()->get('shield.settings')->get('user_agents'));
+  }
+
+  /**
+   * The update leaves a configured user agent allowlist alone.
+   */
+  public function testUserAgentsUpdateKeepsExistingValue(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->set('user_agents', 'facebookexternalhit')
+      ->save();
+
+    shield_update_8010();
+
+    $this->assertSame('facebookexternalhit', \Drupal::configFactory()->get('shield.settings')->get('user_agents'));
+  }
+
+  /**
+   * Authentication logging defaults to off on an existing site.
+   */
+  public function testLogAuthenticationDefaultsToOff(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->clear('log_authentication')
+      ->save();
+
+    shield_update_8011();
+
+    $this->assertFalse(\Drupal::configFactory()->get('shield.settings')->get('log_authentication'));
+  }
+
+  /**
+   * The update leaves a site that already turned logging on alone.
+   */
+  public function testLogAuthenticationUpdateKeepsExistingValue(): void {
+    \Drupal::configFactory()->getEditable('shield.settings')
+      ->set('log_authentication', TRUE)
+      ->save();
+
+    shield_update_8011();
+
+    $this->assertTrue(\Drupal::configFactory()->get('shield.settings')->get('log_authentication'));
+  }
+
+  /**
    * The basic_auth bypass defaults to off on an existing site.
    */
   public function testBasicAuthBypassDefaultsToOff(): void {

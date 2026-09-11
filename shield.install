@@ -88,9 +88,12 @@ function shield_update_8003() {
  */
 function shield_update_8004() {
   $config = \Drupal::configFactory()->getEditable('shield.settings');
+  // The old key name is a stored configuration value, not a word choice.
+  // cspell:disable-next-line
+  $legacy_key = 'whitelist';
   $config
-    ->set('allowlist', $config->get('whitelist'))
-    ->clear('whitelist')
+    ->set('allowlist', $config->get($legacy_key))
+    ->clear($legacy_key)
     ->save();
 }
 
