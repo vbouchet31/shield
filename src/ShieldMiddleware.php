@@ -300,12 +300,14 @@ class ShieldMiddleware implements HttpKernelInterface {
         }
         break;
     }
-    $credentials = $this->getRequestCredentials($request);
-    if ($credentials !== NULL && isset($user, $pass) && hash_equals($user, $credentials[0]) && hash_equals($pass, $credentials[1])) {
+    $credentials = $this->buildCredentials($credential_provider, $user, $pass);
+
+    $input = $this->getRequestCredentials($request);
+    if ($input !== NULL && array_key_exists($input[0], $credentials) && hash_equals($credentials[$input[0]], $input[1])) {
       $request->headers->set('X-Shield-Status', 'authenticated');
       if ($config->get('log_authentication')) {
         $this->logger->notice('Authenticated %user from %ip on %path.', [
-          '%user' => $user,
+          '%user' => $input[0],
           '%ip' => $request->getClientIp(),
           '%path' => $request->getPathInfo(),
         ]);
@@ -324,11 +326,21 @@ class ShieldMiddleware implements HttpKernelInterface {
       return $this->bypass($request, $type, $catch);
     }
 
+    // Only ever advertise the first credential pair. The [user] and [pass]
+    // tokens must not turn the authentication message into a listing of every
+    // account that is configured.
+    $printed_user = $user;
+    $printed_pass = $pass;
+    if ($credentials) {
+      $printed_user = (string) array_key_first($credentials);
+      $printed_pass = reset($credentials);
+    }
+
     $response = new Response();
     $response->headers->add([
       'WWW-Authenticate' => 'Basic realm="' . strtr($config->get('print'), [
-        '[user]' => $user ?? '',
-        '[pass]' => $pass ?? '',
+        '[user]' => (string) $printed_user,
+        '[pass]' => (string) $printed_pass,
       ]) . '"',
     ]);
     if ($config->get('debug_header')) {
@@ -388,6 +400,48 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     return NULL;
+  }
+
+  /**
+   * Builds the map of accepted credentials for a credential provider.
+   *
+   * The Shield credential provider stores its credentials as two plain strings,
+   * so several pairs are expressed by separating them with a pipe. A pipe
+   * therefore cannot appear in a username or password managed by Shield itself.
+   * The Key providers hold a single pair whose values are opaque to Shield and
+   * may legitimately contain a pipe, so they are never split.
+   *
+   * @param string|null $credential_provider
+   *   The configured credential provider.
+   * @param string|null $user
+   *   The configured username, or a pipe separated list of usernames.
+   * @param string|null $pass
+   *   The configured password, or a pipe separated list of passwords.
+   *
+   * @return array
+   *   Passwords keyed by the username they belong to. Empty if the provider
+   *   could not supply a usable credential pair.
+   */
+  protected function buildCredentials($credential_provider, $user, $pass) {
+    if (!isset($user, $pass)) {
+      return [];
+    }
+
+    if ($credential_provider !== 'shield') {
+      return [$user => $pass];
+    }
+
+    $users = explode('|', $user);
+    $passwords = explode('|', $pass);
+
+    // A mismatched pair count means the configuration is ambiguous. Refusing
+    // every credential is the safe reading; the settings form rejects it up
+    // front, so this only guards configuration written directly.
+    if (count($users) !== count($passwords)) {
+      return [];
+    }
+
+    return array_combine($users, $passwords);
   }
 
   /**

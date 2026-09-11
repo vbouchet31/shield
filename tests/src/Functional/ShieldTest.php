@@ -154,6 +154,123 @@ class ShieldTest extends BrowserTestBase {
   }
 
   /**
+   * Validate that several pipe separated credential pairs are accepted.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldMultipleCred() {
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('credentials.shield.user', 'user|second|third')
+      ->set('credentials.shield.pass', 'password|secret|another')
+      ->set('print', '[user] / [pass]')
+      ->set('log_authentication', TRUE)
+      ->save();
+
+    // Every configured pair authenticates, and the log names the pair that
+    // was used rather than the configured list.
+    foreach (['user' => 'password', 'second' => 'secret', 'third' => 'another'] as $user => $pass) {
+      $this->drupalGet('user/login', [], ['Authorization' => 'Basic ' . base64_encode($user . ':' . $pass)]);
+      $this->assertSession()->statusCodeEquals(200);
+      $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'authenticated');
+
+      $entries = $this->getShieldLogEntries();
+      $variables = unserialize(end($entries)->variables, ['allowed_classes' => FALSE]);
+      $this->assertSame($user, $variables['%user']);
+    }
+
+    // A password belonging to another user does not authenticate.
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('second:another')]);
+    $this->assertSession()->statusCodeEquals(401);
+
+    // An unknown user does not authenticate.
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('fourth:password')]);
+    $this->assertSession()->statusCodeEquals(401);
+
+    // The authentication message advertises the first pair only, never the
+    // whole list.
+    $this->assertSession()->responseHeaderContains('WWW-Authenticate', 'Basic realm="user / password"');
+  }
+
+  /**
+   * Validate that mismatched credential lists deny every request.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldMismatchedCred() {
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('credentials.shield.user', 'user|second')
+      ->set('credentials.shield.pass', 'password')
+      ->save();
+
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:password')]);
+    $this->assertSession()->statusCodeEquals(401);
+  }
+
+  /**
+   * Validate that the settings form rejects unusable credential lists.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldCredValidation() {
+    $this->drupalLogin($this->drupalCreateUser(['administer shield']));
+
+    $edit = [
+      'credentials[providers][shield][user]' => 'user|second',
+      'credentials[providers][shield][pass]' => 'password',
+    ];
+    $this->drupalGet('admin/config/system/shield');
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('2 usernames were given but 1 passwords.');
+
+    $edit['credentials[providers][shield][pass]'] = 'password|secret';
+    $edit['credentials[providers][shield][user]'] = 'user|user';
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('Each username can only be listed once.');
+
+    $edit['credentials[providers][shield][user]'] = 'user|';
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('Usernames cannot be empty.');
+
+    $edit['credentials[providers][shield][user]'] = 'user|second';
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('The configuration options have been saved.');
+    $this->assertEquals('user|second', $this->config('shield.settings')->get('credentials.shield.user'));
+  }
+
+  /**
+   * Validate that a Key managed password may still contain a pipe.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   */
+  public function testShieldKeyPasswordWithPipe() {
+    Key::create([
+      'id' => 'shield_pipe',
+      'label' => 'Shield pipe',
+      'key_type' => 'authentication',
+      'key_type_settings' => [],
+      'key_provider' => 'config',
+      'key_provider_settings' => [
+        'key_value' => 'pass|word',
+        'base64_encoded' => FALSE,
+      ],
+    ])->save();
+
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('credential_provider', 'key')
+      ->set('credentials.key.user', 'user')
+      ->set('credentials.key.pass_key', 'shield_pipe')
+      ->save();
+
+    $this->drupalGet('user', [], ['Authorization' => 'Basic ' . base64_encode('user:pass|word')]);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'authenticated');
+  }
+
+  /**
    * Test shield module configuration with key module.
    *
    * @throws \Behat\Mink\Exception\ExpectationException

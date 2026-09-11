@@ -172,11 +172,13 @@ class ShieldSettingsForm extends ConfigFormBase {
       $form['credentials']['providers']['shield']['user'] = [
         '#type' => 'textfield',
         '#title' => $this->t('User'),
+        '#description' => $this->t('To accept more than one set of credentials, separate the usernames with a pipe (|), for example <em>user1|user2</em>, and list the matching passwords in the same order below. A username or password cannot itself contain a pipe.'),
         '#default_value' => $shield_config->get('credentials.shield.user'),
       ];
       $form['credentials']['providers']['shield']['pass'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Password'),
+        '#description' => $this->t('One password, or a pipe separated list holding one password for each username above, in the same order.'),
         '#default_value' => $shield_config->get('credentials.shield.pass'),
       ];
     }
@@ -343,6 +345,48 @@ class ShieldSettingsForm extends ConfigFormBase {
     ]);
     if ((int) $domains_method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $domains) === '') {
       $form_state->setError($form['exceptions']['domains']['shield_domains'], $this->t('Enter at least one domain to include, or select "Exclude" to protect every domain.'));
+    }
+
+    $credential_provider = $form_state->getValue([
+      'credentials',
+      'credential_provider',
+    ]);
+    if ($credential_provider !== 'shield') {
+      return;
+    }
+
+    $users = explode('|', (string) $form_state->getValue([
+      'credentials',
+      'providers',
+      'shield',
+      'user',
+    ]));
+    $passwords = explode('|', (string) $form_state->getValue([
+      'credentials',
+      'providers',
+      'shield',
+      'pass',
+    ]));
+
+    if (count($users) !== count($passwords)) {
+      $form_state->setErrorByName('credentials][providers][shield][pass', $this->t('@user_count usernames were given but @pass_count passwords. Each username needs exactly one password, in the same order.', [
+        '@user_count' => count($users),
+        '@pass_count' => count($passwords),
+      ]));
+      return;
+    }
+
+    // Only meaningful once more than one pair is configured; a single blank
+    // pair is the shipped default and stays the module's own concern.
+    if (count($users) === 1) {
+      return;
+    }
+
+    if (in_array('', $users, TRUE)) {
+      $form_state->setErrorByName('credentials][providers][shield][user', $this->t('Usernames cannot be empty.'));
+    }
+    elseif (count(array_unique($users)) !== count($users)) {
+      $form_state->setErrorByName('credentials][providers][shield][user', $this->t('Each username can only be listed once.'));
     }
   }
 

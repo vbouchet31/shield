@@ -180,6 +180,23 @@ $config['shield.settings']['credentials']['shield']['pass'] = 'password';
 $config['shield.settings']['print'] = 'Protected by a username and password.';
 ```
 
+#### Example with several credential pairs:
+The Shield credential provider accepts more than one username and password.
+Separate the usernames with a pipe and list the matching passwords in the same
+order. Any one of the pairs then unlocks the site. Because the pipe is the
+separator, a username or password stored this way cannot contain one. This does
+not apply to credentials held by the Key module, which are never split.
+
+```php
+$config['shield.settings']['credentials']['shield']['user'] = 'alice|bob';
+$config['shield.settings']['credentials']['shield']['pass'] = 'first|second';
+```
+
+Shield has no notion of identity: every pair grants the same access, and the
+site cannot tell which one was used. The reason to configure more than one is so
+that a single pair can be withdrawn without rotating the password for everyone
+else.
+
 ### Key module
 
 The configuration storage supports storing the authentication in configuration
