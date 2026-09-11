@@ -4,9 +4,6 @@ services:
     arguments:
       - '@config.factory'
       - '@entity_type.manager'
-      - '@path.matcher'
-      - '@path_alias.manager'
-      - '@language_manager'
       - '@module_handler'
       - '@request_stack'
       - '@logger.channel.shield'

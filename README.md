@@ -57,6 +57,14 @@ convenience for well behaved crawlers, not a security measure.
 Allow specific path to be accessed without Shield being prompted (exclude mode)
 or protect only specific path (include mode).
 
+Shield runs before Drupal loads its module files, so paths are matched against
+the URL as it was requested. Enter the path as a visitor types it, alias
+included; internal paths such as `/node/12` only match if the request itself
+uses them. An asterisk matches any number of characters and `<front>` matches
+the site root. A language prefix configured in the URL language detection
+settings is removed before matching, so `/user/login` also covers
+`/nl/user/login`.
+
 #### HTTP basic authentication
 A browser or an HTTP client can only send one set of basic auth credentials,
 so a REST or web service client that authenticates against Drupal with the

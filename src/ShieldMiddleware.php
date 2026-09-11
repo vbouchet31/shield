@@ -6,9 +6,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Language\LanguageManagerInterface;
-use Drupal\Core\Path\PathMatcherInterface;
-use Drupal\path_alias\AliasManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
@@ -56,21 +53,46 @@ class ShieldMiddleware implements HttpKernelInterface {
   /**
    * The path matcher.
    *
-   * @var \Drupal\Core\Path\PathMatcherInterface
+   * NULL unless the deprecated constructor signature was used.
+   *
+   * @var \Drupal\Core\Path\PathMatcherInterface|null
+   *
+   * @deprecated in shield:8.x-1.9 and is removed from shield:2.0.0. Shield's
+   *   middleware runs before Drupal loads its module files, so the path
+   *   matcher cannot be called from it. There is no replacement.
+   *
+   * @see https://www.drupal.org/project/shield/issues/3277210
    */
   protected $pathMatcher;
 
   /**
    * The path alias manager.
    *
-   * @var \Drupal\path_alias\AliasManagerInterface
+   * NULL unless the deprecated constructor signature was used.
+   *
+   * @var \Drupal\path_alias\AliasManagerInterface|null
+   *
+   * @deprecated in shield:8.x-1.9 and is removed from shield:2.0.0. Shield's
+   *   middleware runs before Drupal loads its module files, so the path alias
+   *   manager cannot be called from it. There is no replacement.
+   *
+   * @see https://www.drupal.org/project/shield/issues/3277210
    */
   protected $pathAliasManager;
 
   /**
    * Language Manager.
    *
-   * @var \Drupal\Core\Language\LanguageManagerInterface
+   * NULL unless the deprecated constructor signature was used.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface|null
+   *
+   * @deprecated in shield:8.x-1.9 and is removed from shield:2.0.0. Shield's
+   *   middleware runs before Drupal loads its module files, so the language
+   *   manager cannot be called from it. Read the prefixes from the
+   *   language.negotiation configuration instead.
+   *
+   * @see https://www.drupal.org/project/shield/issues/3277210
    */
   protected $languageManager;
 
@@ -105,33 +127,69 @@ class ShieldMiddleware implements HttpKernelInterface {
   /**
    * Constructs a ShieldMiddleware object.
    *
+   * The path matcher, the path alias manager and the language manager are no
+   * longer used and are removed from the signature in shield:2.0.0. Code that
+   * has to run on both branches can already leave them out: pass the module
+   * handler as the fourth argument and the request stack as the fifth.
+   *
    * @param \Symfony\Component\HttpKernel\HttpKernelInterface $http_kernel
    *   The decorated kernel.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The configuration factory.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The EntityTypeManager service.
-   * @param \Drupal\Core\Path\PathMatcherInterface $path_matcher
-   *   The path matcher service.
-   * @param \Drupal\path_alias\AliasManagerInterface $path_alias_manager
-   *   The path alias manager.
-   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
-   *   Language Manager.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   The module handler.
-   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
-   *   Request stack.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface|\Drupal\Core\Path\PathMatcherInterface $module_handler
+   *   The module handler. Passing the path matcher here is deprecated in
+   *   shield:8.x-1.9 and unsupported in shield:2.0.0.
+   * @param \Symfony\Component\HttpFoundation\RequestStack|\Drupal\path_alias\AliasManagerInterface $requestStack
+   *   The request stack. Passing the path alias manager here is deprecated in
+   *   shield:8.x-1.9 and unsupported in shield:2.0.0.
+   * @param \Drupal\Core\Language\LanguageManagerInterface|null $language_manager
+   *   Deprecated in shield:8.x-1.9 and removed from shield:2.0.0.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface|null $legacy_module_handler
+   *   Deprecated in shield:8.x-1.9 and removed from shield:2.0.0.
+   * @param \Symfony\Component\HttpFoundation\RequestStack|null $legacy_request_stack
+   *   Deprecated in shield:8.x-1.9 and removed from shield:2.0.0.
    * @param \Psr\Log\LoggerInterface|null $logger
-   *   The shield logger channel. Omitting it is deprecated in shield:8.x-1.9
-   *   and it will be required in shield:2.0.0.
+   *   The shield logger channel. On the current signature it is the sixth
+   *   argument; on the deprecated one it is the ninth. Omitting it is
+   *   deprecated in shield:8.x-1.9 and it will be required in shield:2.0.0.
+   *
+   * @see https://www.drupal.org/project/shield/issues/3277210
    */
-  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, PathMatcherInterface $path_matcher, AliasManagerInterface $path_alias_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, RequestStack $requestStack, ?LoggerInterface $logger = NULL) {
+  public function __construct(HttpKernelInterface $http_kernel, ConfigFactoryInterface $config_factory, EntityTypeManagerInterface $entity_type_manager, $module_handler, $requestStack, $language_manager = NULL, $legacy_module_handler = NULL, $legacy_request_stack = NULL, ?LoggerInterface $logger = NULL) {
+    // The logger follows the request stack on the current signature, which
+    // is the slot the language manager occupies on the deprecated one.
+    if ($logger === NULL && $language_manager instanceof LoggerInterface) {
+      $logger = $language_manager;
+      $language_manager = NULL;
+    }
+
     $this->httpKernel = $http_kernel;
     $this->configFactory = $config_factory;
     $this->entityTypeManager = $entity_type_manager;
-    $this->pathMatcher = $path_matcher;
-    $this->pathAliasManager = $path_alias_manager;
-    $this->languageManager = $language_manager;
+
+    if (!$module_handler instanceof ModuleHandlerInterface) {
+      @trigger_error('Passing the path matcher, the path alias manager and the language manager to ' . __METHOD__ . '() is deprecated in shield:8.x-1.9 and is unsupported in shield:2.0.0. Pass the module handler as the fourth argument and the request stack as the fifth. See https://www.drupal.org/project/shield/issues/3277210', E_USER_DEPRECATED);
+      // Populating the deprecated properties is the whole point of this
+      // branch: subclasses on the old signature may still read them.
+      // @phpstan-ignore-next-line
+      $this->pathMatcher = $module_handler;
+      // @phpstan-ignore-next-line
+      $this->pathAliasManager = $requestStack;
+      // @phpstan-ignore-next-line
+      $this->languageManager = $language_manager;
+      $module_handler = $legacy_module_handler;
+      $requestStack = $legacy_request_stack;
+    }
+
+    if (!$module_handler instanceof ModuleHandlerInterface) {
+      throw new \InvalidArgumentException('The module handler is required by ' . __METHOD__ . '().');
+    }
+    if (!$requestStack instanceof RequestStack) {
+      throw new \InvalidArgumentException('The request stack is required by ' . __METHOD__ . '().');
+    }
+
     $this->moduleHandler = $module_handler;
     $this->requestStack = $requestStack;
     if ($logger === NULL) {
@@ -201,7 +259,18 @@ class ShieldMiddleware implements HttpKernelInterface {
     // Check if user has provided credentials.
     $user = NULL;
     $pass = NULL;
-    switch ($config->get('credential_provider')) {
+    $credential_provider = $config->get('credential_provider');
+
+    // The key and multikey providers load a key entity. Entity discovery runs
+    // hook_entity_type_build() and friends, so the module files have to be
+    // loaded first or the module_implements cache is populated with an
+    // incomplete implementation list.
+    // @see https://www.drupal.org/project/shield/issues/3277210
+    if ($credential_provider === 'key' || $credential_provider === 'multikey') {
+      $this->moduleHandler->loadAll();
+    }
+
+    switch ($credential_provider) {
       case 'shield':
         $user = $config->get('credentials.shield.user');
         $pass = $config->get('credentials.shield.pass');
@@ -375,30 +444,20 @@ class ShieldMiddleware implements HttpKernelInterface {
       }
     }
 
-    $paths_to_check = str_replace(' ', '', $paths_to_check);
-
-    $path = $request->getPathInfo();
-
-    // Remove language code from url.
-    foreach ($this->languageManager->getLanguages() as $language) {
-      $langcode = $language->getId();
-      if (substr($path, 0, strlen($langcode) + 1) === '/' . $langcode) {
-        $path = str_replace('/' . $langcode . '/', '/', $path);
-        break;
-      }
-    }
+    // Shield runs before Drupal's own kernel_pre_handle middleware, so the
+    // incoming URL is all that can safely be inspected here. Anything routed
+    // through the path alias manager, the language manager or the path matcher
+    // ends up invoking hooks before the module files are loaded.
+    // @see https://www.drupal.org/project/shield/issues/3277210
+    $path = $this->stripLanguagePrefix($request->getPathInfo());
 
     // Remove trailing slash.
     $path = rtrim($path, '/');
 
     // Make it simple slash again for home page.
-    $path = empty($path) ? '/' : $path;
+    $path = $path === '' ? '/' : $path;
 
-    // Get alias of path.
-    $path = $this->pathAliasManager->getAliasByPath($path);
-
-    // Match the path using path matcher service against paths in config.
-    $path_match = $this->pathMatcher->matchPath($path, $paths_to_check);
+    $path_match = $this->matchPatterns($path, $paths_to_check, TRUE);
 
     return $path_match && $method == self::EXCLUDE_METHOD || !$path_match && $method == self::INCLUDE_METHOD;
   }
@@ -437,6 +496,78 @@ class ShieldMiddleware implements HttpKernelInterface {
   }
 
   /**
+   * Removes a configured language prefix from the start of a path.
+   *
+   * The language manager cannot be used here: it loads configurable language
+   * entities. The negotiation settings hold the same prefixes and are a plain
+   * config read.
+   *
+   * @param string $path
+   *   The incoming request path.
+   *
+   * @return string
+   *   The path without its language prefix, if it had one.
+   */
+  protected function stripLanguagePrefix(string $path): string {
+    $prefixes = $this->configFactory->get('language.negotiation')->get('url.prefixes');
+    if (empty($prefixes) || !is_array($prefixes)) {
+      return $path;
+    }
+
+    foreach ($prefixes as $prefix) {
+      if ($prefix === '' || !is_string($prefix)) {
+        continue;
+      }
+      if ($path === '/' . $prefix) {
+        return '/';
+      }
+      if (str_starts_with($path, '/' . $prefix . '/')) {
+        return substr($path, strlen($prefix) + 1);
+      }
+    }
+
+    return $path;
+  }
+
+  /**
+   * Matches a value against newline separated literal or wildcard patterns.
+   *
+   * This deliberately does not use the path.matcher service. That service
+   * expands the <front> keyword by reading system.site, which config overrides
+   * may answer with an entity query, and entity queries are not safe before
+   * the module files are loaded.
+   *
+   * @param string $value
+   *   The path or host name to match.
+   * @param string $patterns
+   *   Newline separated patterns. An asterisk matches any number of
+   *   characters.
+   * @param bool $is_path
+   *   Whether the value is a path, in which case <front> matches the site
+   *   root.
+   *
+   * @return bool
+   *   TRUE if one of the patterns matches the value.
+   */
+  protected function matchPatterns(string $value, string $patterns, bool $is_path = FALSE): bool {
+    foreach (preg_split('/\R/u', $patterns) ?: [] as $pattern) {
+      $pattern = trim($pattern);
+      if ($pattern === '') {
+        continue;
+      }
+      if ($is_path && $pattern === '<front>') {
+        $pattern = '/';
+      }
+      $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
+      if (preg_match($regex, $value)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Checks if the current domain should be allowed to bypass shield.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
@@ -459,9 +590,9 @@ class ShieldMiddleware implements HttpKernelInterface {
       return FALSE;
     }
 
-    // Match the host using the path matcher service against the configured
-    // domains, so that the '*' wildcard works here too.
-    $domain_match = $this->pathMatcher->matchPath($request->getHost(), $domains_to_check);
+    // Matched without the path matcher service for the reason given on
+    // ::matchPatterns(); the '*' wildcard works the same way.
+    $domain_match = $this->matchPatterns($request->getHost(), $domains_to_check);
 
     return $domain_match && $method === self::EXCLUDE_METHOD || !$domain_match && $method === self::INCLUDE_METHOD;
   }
@@ -487,6 +618,14 @@ class ShieldMiddleware implements HttpKernelInterface {
       return $this->basicAuthResults[$key];
     }
     $this->basicAuthResults[$key] = FALSE;
+
+    // Authenticating loads a user entity, which triggers entity type
+    // discovery. Load the module files first so that the hooks fired during
+    // discovery are complete. This sits here rather than at the call sites
+    // so that every caller - the opt-in bypass in handle() as much as the
+    // header unsetting in bypass() - gets it.
+    // @see https://www.drupal.org/project/shield/issues/3277210
+    $this->moduleHandler->loadAll();
 
     // basic_auth is an optional dependency: its service does not exist unless
     // that module is installed, so the provider cannot be injected and is

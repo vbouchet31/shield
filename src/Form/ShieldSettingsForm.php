@@ -284,7 +284,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $form['exceptions']['paths'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Paths'),
-      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash. An empty list combined with "include" would leave every path unprotected, so it is not accepted.'),
+      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash. Paths are matched against the requested URL, so enter the alias a visitor sees rather than an internal path. An asterisk matches any number of characters and %front matches the site root. An empty list combined with "include" would leave every path unprotected, so it is not accepted.', ['%front' => '<front>']),
     ];
     $form['exceptions']['paths']['shield_method'] = [
       '#type' => 'radios',
