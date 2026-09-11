@@ -1,0 +1,6 @@
+services:
+  shield_test.middleware:
+    class: Drupal\shield_test\ShieldTestMiddleware
+    tags:
+      # Ensure we run before the shield.middleware
+      - { name: http_middleware, priority: 300 }

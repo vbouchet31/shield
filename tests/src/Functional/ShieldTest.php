@@ -19,6 +19,7 @@ class ShieldTest extends BrowserTestBase {
    */
   protected static $modules = [
     'shield',
+    'shield_test',
     'key',
     'basic_auth',
     'dblog',
@@ -26,6 +27,8 @@ class ShieldTest extends BrowserTestBase {
     // BasicAuthTest uses it for the same reason: basic_auth is not a global
     // authentication provider, so it never applies to ordinary HTML routes.
     'router_test',
+    'page_cache',
+    'dynamic_page_cache',
   ];
 
   /**
@@ -390,6 +393,64 @@ class ShieldTest extends BrowserTestBase {
     $this->drupalGet('user');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (http method)');
+  }
+
+  /**
+   * Validate the IP address allow list feature.
+   *
+   * @throws \Behat\Mink\Exception\ExpectationException
+   */
+  public function testShieldIpAddressAllowlist() {
+    // Enable page cache max age.
+    $this->config('system.performance')->set('cache.page.max_age', 300)->save();
+
+    // Verify we initially get a cacheable 200 response.
+    $this->drupalGet('user/login');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('Cache-Control', 'max-age=300, public');
+
+    // Enable shield with an allowlist of two IP addresses.
+    $this->config('shield.settings')
+      ->set('shield_enable', TRUE)
+      ->set('allowlist', "10.1.2.3\n10.2.3.4")
+      ->save();
+
+    // Verify localhost receives a 401 response.
+    $this->drupalGet('user/login');
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
+
+    // Fake the IP address (see ShieldTestMiddleware) and
+    // verify they are allowed through.
+    foreach (['10.1.2.3', '10.2.3.4'] as $allowed_ip) {
+      $this->drupalGet('user/login', [], ['Shield-Fake-Test-Ip' => $allowed_ip]);
+      $this->assertSession()->statusCodeEquals(200);
+      $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'skipped (ip)');
+      // Verify the response is uncacheable.
+      $this->assertSession()->responseHeaderEquals('Cache-Control', 'must-revalidate, no-cache, private');
+      $this->assertSession()->responseHeaderEquals('Expires', 'Sun, 19 Nov 1978 05:00:00 GMT');
+      // Revalidation headers are pointless once caching is denied outright.
+      $this->assertSession()->responseHeaderDoesNotExist('ETag');
+      $this->assertSession()->responseHeaderDoesNotExist('Last-Modified');
+      // The web server may add its own Vary (Accept-Encoding); only Drupal's
+      // Vary: Cookie has to be gone.
+      $this->assertSession()->responseHeaderNotContains('Vary', 'Cookie');
+    }
+
+    // The internal page cache still stores and serves the response. It does so
+    // without dispatching a response event, so verify the headers survive a
+    // cache hit as well.
+    $this->drupalGet('user/login', [], ['Shield-Fake-Test-Ip' => '10.1.2.3']);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->responseHeaderEquals('X-Drupal-Cache', 'HIT');
+    $this->assertSession()->responseHeaderEquals('Cache-Control', 'must-revalidate, no-cache, private');
+    $this->assertSession()->responseHeaderEquals('Expires', 'Sun, 19 Nov 1978 05:00:00 GMT');
+
+    // Use an invalid fake IP address and verify
+    // that the response is 401 as expected.
+    $this->drupalGet('user/login', [], ['Shield-Fake-Test-Ip' => '10.5.6.7']);
+    $this->assertSession()->statusCodeEquals(401);
+    $this->assertSession()->responseHeaderEquals('X-Shield-Status', 'pending');
   }
 
   /**

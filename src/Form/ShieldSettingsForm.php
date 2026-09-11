@@ -226,9 +226,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $form['exceptions']['allowlist'] = [
       '#type' => 'textarea',
       '#title' => $this->t('IP Allowlist'),
-      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><em>Warning: IP allowlists interfere with reverse proxy caching! @strong_style_tag Do not use allowlist if reverse proxy caching is in use!</strong></em>", [
-        '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
-      ]),
+      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><strong>Warning:</strong> IP allowlists may not be compatible with reverse proxy caching. If reverse proxy caching is in use ensure that it correctly respects Cache-Control headers set by the origin server."),
       '#default_value' => $shield_config->get('allowlist'),
       '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1\n2001:0db8:0000:0000:0000:8a2e:0370:7334\n2001:db8::8a2e:370:7334"),
     ];

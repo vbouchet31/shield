@@ -240,7 +240,15 @@ class ShieldMiddleware implements HttpKernelInterface {
       $allowlist = array_filter(array_map('trim', explode("\n", $allowlist)));
       if (IpUtils::checkIp($request->getClientIp(), $allowlist)) {
         $request->headers->set('X-Shield-Status', 'skipped (ip)');
-        return $this->bypass($request, $type, $catch);
+        $response = $this->bypass($request, $type, $catch);
+        // Whether this response was shielded depends on the client IP, which
+        // shared caches do not key on. Tell them not to store it, so that a
+        // reverse proxy or CDN cannot hand a response fetched by an allowed
+        // IP to a client that is not on the allowlist. The headers are set
+        // after the kernel has run, and therefore after the internal page
+        // cache has stored the response, so internal caching is unaffected.
+        $this->setResponseNotCacheable($response);
+        return $response;
       }
     }
 
@@ -471,6 +479,27 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     return $this->httpKernel->handle($request, $type, $catch);
+  }
+
+  /**
+   * Denies caching of a response by proxies and browsers.
+   *
+   * Mirrors \Drupal\Core\EventSubscriber\FinishResponseSubscriber so that
+   * Shield emits the same headers core does for an uncacheable response.
+   *
+   * @param \Symfony\Component\HttpFoundation\Response $response
+   *   The response to mark as uncacheable.
+   */
+  protected function setResponseNotCacheable(Response $response) {
+    $response->headers->set('Cache-Control', 'no-cache, must-revalidate');
+    $response->setExpires(\DateTime::createFromFormat('j-M-Y H:i:s T', '19-Nov-1978 05:00:00 UTC'));
+
+    // There is no point in sending along headers necessary for cache
+    // revalidation, if caching by proxies and browsers is denied in the first
+    // place. Therefore remove ETag, Last-Modified and Vary in that case.
+    $response->setEtag(NULL);
+    $response->setLastModified(NULL);
+    $response->headers->remove('Vary');
   }
 
   /**
