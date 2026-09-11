@@ -66,7 +66,9 @@ function shield_update_8003() {
       break;
 
     case 'multikey':
+      /** @var \Drupal\Core\Entity\EntityStorageInterface $storage */
       $storage = \Drupal::entityTypeManager()->getStorage('key');
+      /** @var \Drupal\key\KeyInterface $user_pass_key */
       $user_pass_key = $storage->load($config->get('credentials.multikey.user_pass_key'));
       if ($user_pass_key) {
         $values = $user_pass_key->getKeyValues();

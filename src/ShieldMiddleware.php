@@ -449,6 +449,32 @@ class ShieldMiddleware implements HttpKernelInterface {
     $authenticate = FALSE;
     // Check for empty username and password in case of shield disabled.
     if ($basicAuthService->applies($request)) {
+      // Core's procedural includes are loaded by DrupalKernel::preHandle(),
+      // which runs in the http_middleware.kernel_pre_handle middleware at
+      // priority 100. Shield sits at priority 250 so that it can answer before
+      // the page cache, which means it is reached while those includes are
+      // still missing.
+      //
+      // Authenticating below rehashes the account's password when the stored
+      // hash is out of date, and that saves the user entity;
+      // EntityStorageBase::doSave() then returns SAVED_UPDATED, which is
+      // declared in core/includes/common.inc. Under PHP 8 an undefined
+      // constant is an \Error rather than a warning, and the catch below only
+      // catches \Exception, so it escapes the middleware as a 500. The site
+      // cannot recover on its own, because the save that would store the fresh
+      // hash is the one that dies.
+      //
+      // PHP 8.4 raised bcrypt's default cost from 10 to 12, so every hash
+      // written under PHP 8.3 or earlier now needs a rehash and every
+      // basic_auth login on such a site hits this.
+      //
+      // @see \Drupal\Core\DrupalKernel::preHandle()
+      // @see https://www.drupal.org/project/shield/issues/3615866
+      // phpcs:disable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
+      // @phpstan-ignore-next-line
+      \Drupal::service('kernel')->loadLegacyIncludes();
+      // phpcs:enable DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
+
       // We need to push the current request to the request stack because
       // basic_auth uses a flood functionality which needs the client IP.
       $this->requestStack->push($request);
