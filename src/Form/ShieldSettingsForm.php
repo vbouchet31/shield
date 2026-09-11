@@ -263,7 +263,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $form['exceptions']['paths'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Paths'),
-      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash.'),
+      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash. An empty list combined with "include" would leave every path unprotected, so it is not accepted.'),
     ];
     $form['exceptions']['paths']['shield_method'] = [
       '#type' => 'radios',
@@ -281,6 +281,23 @@ class ShieldSettingsForm extends ConfigFormBase {
     ];
 
     return parent::buildForm($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    parent::validateForm($form, $form_state);
+
+    // "Include" means Shield only protects the listed paths, so an empty list
+    // protects nothing at all. Saving that leaves the site wide open while the
+    // settings still report Shield as enabled.
+    // @see https://www.drupal.org/project/shield/issues/3491255
+    $method = $form_state->getValue(['exceptions', 'paths', 'shield_method']);
+    $paths = $form_state->getValue(['exceptions', 'paths', 'shield_paths']);
+    if ((int) $method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $paths) === '') {
+      $form_state->setError($form['exceptions']['paths']['shield_paths'], $this->t('Enter at least one path to include, or select "Exclude" to protect the whole site. Including an empty list of paths would disable Shield everywhere.'));
+    }
   }
 
   /**
