@@ -39,8 +39,12 @@ is to allow OPTIONS requests in CORS context. See issue
 details.
 
 #### Domain
-Allow specific domains to be publicly accessible. Typical use case is to allow
-front-office domain so the back-office domain remains protected.
+Allow specific domains to be publicly accessible (exclude mode) or protect only
+specific domains (include mode). Typical use case for the exclude mode is to
+allow the front-office domain so the back-office domain remains protected;
+include mode is the other way round, for a site whose domains are public except
+for a few. The `*` wildcard is supported. An empty list leaves every domain
+protected whichever method is selected.
 
 #### User agent
 Allow requests whose user agent contains one of the configured strings, matched

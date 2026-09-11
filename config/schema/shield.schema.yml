@@ -44,7 +44,10 @@ shield.settings:
         label: 'Allowed HTTP method'
     domains:
       type: text
-      label: 'Bypass shield based on domain name'
+      label: 'Newline delimited list of domain host names that should be excluded or included from Shield protection.'
+    domains_method:
+      type: integer
+      label: 'Determines if domains should be excluded or included from Shield protection.'
     user_agents:
       type: text
       label: 'Bypass shield based on the request user agent'

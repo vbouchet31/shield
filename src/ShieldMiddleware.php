@@ -21,7 +21,7 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 class ShieldMiddleware implements HttpKernelInterface {
 
   /**
-   * Constants representing if configured paths should be included or excluded.
+   * Constants representing if configured values should be included or excluded.
    */
   const EXCLUDE_METHOD = 0;
   const INCLUDE_METHOD = 1;
@@ -164,12 +164,9 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     // Bypass as the domain is allowed.
-    if ($domains = $config->get('domains')) {
-      $domains = str_replace(' ', '', $domains);
-      if (!empty($domains) && $this->pathMatcher->matchPath($request->getHost(), $domains)) {
-        $request->headers->set('X-Shield-Status', 'skipped (domain)');
-        return $this->bypass($request, $type, $catch);
-      }
+    if ($this->checkDomainAllowed($request, $config)) {
+      $request->headers->set('X-Shield-Status', 'skipped (domain)');
+      return $this->bypass($request, $type, $catch);
     }
 
     // Bypass as the user agent is allowed.
@@ -396,6 +393,36 @@ class ShieldMiddleware implements HttpKernelInterface {
     }
 
     return FALSE;
+  }
+
+  /**
+   * Checks if the current domain should be allowed to bypass shield.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The global request object.
+   * @param \Drupal\Core\Config\ImmutableConfig $config
+   *   The current Shield config.
+   *
+   * @return bool
+   *   TRUE if the current domain should be bypassed, and FALSE if not.
+   */
+  public function checkDomainAllowed(Request $request, ImmutableConfig $config) {
+    $domains_to_check = str_replace(' ', '', (string) $config->get('domains'));
+    $method = (int) $config->get('domains_method');
+
+    // An empty list singles out no domain at all: in exclude mode there is
+    // nothing to let through, and in include mode there is nothing to narrow
+    // protection down to. Either way the whole site stays protected, so the
+    // include method cannot leave every domain unprotected at once.
+    if ($domains_to_check === '') {
+      return FALSE;
+    }
+
+    // Match the host using the path matcher service against the configured
+    // domains, so that the '*' wildcard works here too.
+    $domain_match = $this->pathMatcher->matchPath($request->getHost(), $domains_to_check);
+
+    return $domain_match && $method === self::EXCLUDE_METHOD || !$domain_match && $method === self::INCLUDE_METHOD;
   }
 
   /**

@@ -242,10 +242,24 @@ class ShieldSettingsForm extends ConfigFormBase {
       '#default_value' => $shield_config->get('http_method_allowlist') ?? [],
     ];
 
-    $form['exceptions']['shield_domains'] = [
+    $form['exceptions']['domains'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Domains'),
+      '#description' => $this->t('According to the Shield domain method selected below, these domain host names will be either excluded from, or included in Shield protection. Leave this blank to protect every domain. An empty list combined with "include" is not accepted, and leaves every domain protected.'),
+    ];
+    $form['exceptions']['domains']['shield_domains_method'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Domain Method'),
+      '#default_value' => $shield_config->get('domains_method') ?? ShieldMiddleware::EXCLUDE_METHOD,
+      '#options' => [
+        ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'),
+        ShieldMiddleware::INCLUDE_METHOD => $this->t('Include'),
+      ],
+    ];
+    $form['exceptions']['domains']['shield_domains'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Allowlist Domains'),
-      '#description' => $this->t('Enter list of domain host names for which shield should not be shown, one per line.'),
+      '#title' => $this->t('Domains'),
+      '#description' => $this->t('Enter list of domain host names, one per line. The <em>*</em> wildcard is supported.'),
       '#default_value' => $shield_config->get('domains'),
       '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
     ];
@@ -298,6 +312,22 @@ class ShieldSettingsForm extends ConfigFormBase {
     if ((int) $method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $paths) === '') {
       $form_state->setError($form['exceptions']['paths']['shield_paths'], $this->t('Enter at least one path to include, or select "Exclude" to protect the whole site. Including an empty list of paths would disable Shield everywhere.'));
     }
+
+    // Including an empty list of domains means the same thing: there is no
+    // domain left for Shield to protect.
+    $domains_method = $form_state->getValue([
+      'exceptions',
+      'domains',
+      'shield_domains_method',
+    ]);
+    $domains = $form_state->getValue([
+      'exceptions',
+      'domains',
+      'shield_domains',
+    ]);
+    if ((int) $domains_method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $domains) === '') {
+      $form_state->setError($form['exceptions']['domains']['shield_domains'], $this->t('Enter at least one domain to include, or select "Exclude" to protect every domain.'));
+    }
   }
 
   /**
@@ -338,7 +368,13 @@ class ShieldSettingsForm extends ConfigFormBase {
       ->set('http_method_allowlist', $http_method_allowlist)
       ->set('domains', $form_state->getValue([
         'exceptions',
+        'domains',
         'shield_domains',
+      ]))
+      ->set('domains_method', $form_state->getValue([
+        'exceptions',
+        'domains',
+        'shield_domains_method',
       ]))
       ->set('method', $form_state->getValue([
         'exceptions',
