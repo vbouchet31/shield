@@ -1,0 +1,9 @@
+shield.condition.plugin.http_method:
+  type: shield.condition.plugin.*
+  label: 'HTTP method'
+  mapping:
+    methods:
+      type: sequence
+      label: 'HTTP methods'
+      sequence:
+        type: string

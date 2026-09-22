@@ -1,0 +1,7 @@
+shield.condition.plugin.path:
+  type: shield.condition.plugin.*
+  label: 'Path'
+  mapping:
+    paths:
+      type: text
+      label: 'Paths'

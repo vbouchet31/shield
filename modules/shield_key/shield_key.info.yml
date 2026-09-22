@@ -1,0 +1,8 @@
+name: 'Shield: Key'
+description: 'Provides a Key module credential provider for Shield policies.'
+package: 'Administration'
+type: module
+core_version_requirement: ^9.2 || ^10 || ^11
+dependencies:
+  - shield:shield
+  - key:key

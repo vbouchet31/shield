@@ -1,0 +1,10 @@
+shield.credential_provider.plugin.key:
+  type: shield.credential_provider.plugin.*
+  label: 'Key'
+  mapping:
+    user:
+      type: string
+      label: 'Username'
+    pass_key:
+      type: string
+      label: 'Password key'
