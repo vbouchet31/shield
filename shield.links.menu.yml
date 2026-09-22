@@ -1,5 +1,17 @@
-shield.settings:
+shield.admin_index:
   title: Shield
-  description: 'Configure Shield module.'
-  route_name: shield.settings
+  description: 'Configure the Shield module: global settings and policies.'
+  route_name: shield.admin_index
   parent: system.admin_config_system
+
+shield.settings:
+  title: Configuration
+  description: 'Configure Shield global settings.'
+  route_name: shield.settings
+  parent: shield.admin_index
+
+entity.shield_policy.collection:
+  title: Policies
+  description: 'Manage Shield policies.'
+  route_name: entity.shield_policy.collection
+  parent: shield.admin_index

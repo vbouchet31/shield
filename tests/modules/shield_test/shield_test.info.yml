@@ -1,6 +1,0 @@
-name: Shield test
-type: module
-description: 'Shield test module'
-package: Testing
-dependencies:
-  - shield:shield

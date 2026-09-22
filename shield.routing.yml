@@ -1,7 +1,109 @@
-shield.settings:
+shield.admin_index:
   path: '/admin/config/system/shield'
   defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
     _title: 'Shield'
+  requirements:
+    _permission: 'administer shield'
+
+shield.settings:
+  path: '/admin/config/system/shield/settings'
+  defaults:
+    _title: 'Configuration'
     _form: 'Drupal\shield\Form\ShieldSettingsForm'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.collection:
+  path: '/admin/config/system/shield/policy'
+  defaults:
+    _entity_list: 'shield_policy'
+    _title: 'Policies'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.add_form:
+  path: '/admin/config/system/shield/policy/add'
+  defaults:
+    _entity_form: 'shield_policy.add'
+    _title: 'Add Shield policy'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.edit_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}'
+  defaults:
+    _entity_form: 'shield_policy.edit'
+    _title: 'Edit Shield policy'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.delete_form:
+  path: '/admin/config/system/shield/policy/{shield_policy}/delete'
+  defaults:
+    _entity_form: 'shield_policy.delete'
+    _title: 'Delete Shield policy'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.enable:
+  path: '/admin/config/system/shield/policy/{shield_policy}/enable'
+  defaults:
+    _entity_form: 'shield_policy.enable'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.disable:
+  path: '/admin/config/system/shield/policy/{shield_policy}/disable'
+  defaults:
+    _entity_form: 'shield_policy.disable'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.condition.add:
+  path: '/admin/config/system/shield/policy/condition/add/{machine_name}/{condition_id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyConditionEditForm'
+    _title: 'Add condition'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.condition.edit:
+  path: '/admin/config/system/shield/policy/condition/edit/{shield_policy_id}/{machine_name}/{condition_id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyConditionEditForm'
+    _title: 'Edit condition'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.condition.delete:
+  path: '/admin/config/system/shield/policy/condition/delete/{shield_policy_id}/{machine_name}/{id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyConditionDeleteForm'
+    _title: 'Delete condition'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.credential_provider.add:
+  path: '/admin/config/system/shield/policy/credential-provider/add/{machine_name}/{credential_provider_id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyCredentialProviderEditForm'
+    _title: 'Add credential provider'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.credential_provider.edit:
+  path: '/admin/config/system/shield/policy/credential-provider/edit/{shield_policy_id}/{machine_name}/{credential_provider_id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyCredentialProviderEditForm'
+    _title: 'Edit credential provider'
+  requirements:
+    _permission: 'administer shield'
+
+entity.shield_policy.credential_provider.delete:
+  path: '/admin/config/system/shield/policy/credential-provider/delete/{shield_policy_id}/{machine_name}/{id}'
+  defaults:
+    _form: 'Drupal\shield\Form\ShieldPolicyCredentialProviderDeleteForm'
+    _title: 'Delete credential provider'
   requirements:
     _permission: 'administer shield'

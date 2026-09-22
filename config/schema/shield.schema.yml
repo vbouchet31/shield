@@ -4,17 +4,6 @@ shield.settings:
   type: config_object
   label: 'Shield settings'
   mapping:
-    shield_enable:
-      type: boolean
-      label: 'Enable shield'
-    credential_provider:
-      type: 'string'
-      label: 'Credential provider'
-    credentials:
-      type: sequence
-      label: 'Credentials'
-      sequence:
-        type: shield.credentials.[%key]
     allow_cli:
       type: boolean
       label: 'CLI bypass'
@@ -30,60 +19,58 @@ shield.settings:
     basic_auth_bypass:
       type: boolean
       label: 'Let requests authenticated by basic_auth pass Shield.'
-    print:
+
+shield.shield_policy.*:
+  type: config_entity
+  label: 'Shield policy'
+  mapping:
+    id:
       type: string
-      label: 'The greeting text, [user] and [pass] tokens are usable.'
-    method:
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    status:
+      type: boolean
+      label: 'Status'
+    weight:
       type: integer
-      label: 'Determines if paths should be excluded or included from Shield protection.'
-    paths:
-      type: text
-      label: 'Newline delimited list of paths that should be excluded or included from Shield protection.'
-    allowlist:
-      type: string
-      label: 'Bypass shield based on user IP'
-    http_method_allowlist:
+      label: 'Weight'
+    conditions:
       type: sequence
-      label: 'Bypass shield based on http method'
+      label: 'Conditions'
       sequence:
-        type: string
-        label: 'Allowed HTTP method'
-    domains:
-      type: text
-      label: 'Newline delimited list of domain host names that should be excluded or included from Shield protection.'
-    domains_method:
-      type: integer
-      label: 'Determines if domains should be excluded or included from Shield protection.'
-    user_agents:
-      type: text
-      label: 'Bypass shield based on the request user agent'
+        type: shield.condition.plugin.[id]
+    credential_providers:
+      type: sequence
+      label: 'Credential providers'
+      sequence:
+        type: shield.credential_provider.plugin.[id]
 
-shield.credentials.shield:
+# Fallback for condition plugins that don't define their own settings.
+shield.condition.plugin.*:
   type: mapping
-  label: 'Shield credentials'
   mapping:
-    user:
+    id:
       type: string
-      label: 'Username'
-    pass:
-      type: string
-      label: 'Password'
+      label: 'Plugin ID'
+      constraints:
+        PluginExists:
+          manager: plugin.manager.shield.condition
+          interface: 'Drupal\shield\ShieldConditionInterface'
+    negate:
+      type: boolean
+      label: 'Negate'
 
-shield.credentials.key:
+# Fallback for credential provider plugins that don't define their own
+# settings.
+shield.credential_provider.plugin.*:
   type: mapping
-  label: 'Shield credentials with Key Module'
   mapping:
-    user:
+    id:
       type: string
-      label: 'Username'
-    pass_key:
-      type: string
-      label: 'Password key'
-
-shield.credentials.multikey:
-  type: mapping
-  label: 'Shield credentials with Key Module (user/password keys)'
-  mapping:
-    user_pass_key:
-      type: string
-      label: 'User/Password key'
+      label: 'Plugin ID'
+      constraints:
+        PluginExists:
+          manager: plugin.manager.shield.credential_provider
+          interface: 'Drupal\shield\ShieldCredentialProviderInterface'

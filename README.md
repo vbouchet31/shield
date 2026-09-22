@@ -88,9 +88,13 @@ the narrower option.
 
 #### Debug header
 With all the exception options, it may be unclear why basic auth is not
-prompted. For this reason a debug header option has been added. It will
-a `X-Shield-Status` header in the response. These are the various
-options:
+prompted. For this reason a debug header option has been added. It adds a
+`X-Shield-Status` header in the response, and, whenever a policy governed the
+request, an `X-Shield-Policy-Name` header carrying that policy's machine
+name - useful when several policies with overlapping path conditions are
+configured, to see which one actually decided the outcome.
+
+`X-Shield-Status` options:
 - `pending` (HTTP 401, basic auth is prompted)
 - `authenticated` (HTTP 200, basic auth has been submitted)
 - `disabled` (Enabled shield box is unchecked)

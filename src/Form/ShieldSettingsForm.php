@@ -7,32 +7,20 @@ use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Render\Markup;
-use Drupal\key\Plugin\KeyPluginManager;
-use Drupal\shield\ShieldMiddleware;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Configure site information settings for this site.
+ * Configures the Shield module's site-wide settings.
+ *
+ * Access scoping and credentials moved to ShieldPolicy config entities; only
+ * the handful of settings that are legitimately site-wide (not per-policy)
+ * remain here. See the implementation plan §5 for why each one stayed.
  */
 class ShieldSettingsForm extends ConfigFormBase {
 
   /**
-   * The module handler.
-   *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-  protected $moduleHandler;
-
-  /**
-   * The key type manager, if exists.
-   *
-   * @var \Drupal\key\Plugin\KeyPluginManager|null
-   */
-  protected $keyTypeManager;
-
-  /**
-   * ShieldSettingsForm constructor.
+   * Constructs a new ShieldSettingsForm object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
@@ -40,13 +28,9 @@ class ShieldSettingsForm extends ConfigFormBase {
    *   The typed config manager.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler.
-   * @param \Drupal\key\Plugin\KeyPluginManager|null $keyTypeManager
-   *   The key plugin manager.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, ModuleHandlerInterface $moduleHandler, ?KeyPluginManager $keyTypeManager = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, protected ModuleHandlerInterface $moduleHandler) {
     parent::__construct($config_factory, $typedConfigManager);
-    $this->moduleHandler = $moduleHandler;
-    $this->keyTypeManager = $keyTypeManager;
   }
 
   /**
@@ -57,7 +41,6 @@ class ShieldSettingsForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('config.typed'),
       $container->get('module_handler'),
-      $container->get('plugin.manager.key.key_type', ContainerInterface::NULL_ON_INVALID_REFERENCE)
     );
   }
 
@@ -81,232 +64,48 @@ class ShieldSettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $shield_config = $this->config('shield.settings');
 
-    // Submitted form values should be nested.
-    $form['#tree'] = TRUE;
-
     $form['description'] = [
       '#type' => 'item',
       '#title' => $this->t('Shield settings'),
-      '#description' => $this->t('Set up credentials for an authenticated user. You can also decide whether you want to print out the credentials or not.'),
+      '#description' => $this->t('Access scoping and credentials are configured per <a href=":url">Shield policy</a>. The settings below apply to every policy.', [
+        ':url' => Url::fromRoute('entity.shield_policy.collection')->toString(),
+      ]),
     ];
 
-    $form['general'] = [
-      '#id' => 'general',
-      '#type' => 'details',
-      '#title' => $this->t('General'),
-      '#open' => TRUE,
-    ];
-
-    $form['general']['shield_enable'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable Shield'),
-      '#description' => $this->t('Enable/Disable shield functionality. All other settings are ignored if this is not checked.'),
-      '#default_value' => $shield_config->get('shield_enable'),
-    ];
-
-    $form['general']['shield_print'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Authentication message'),
-      '#description' => $this->t("<strong>Warning:</strong> Due to security issues, most modern browsers will not print this message anymore. <br /> The message to print in the authentication request popup. You can use [user] and [pass] to print the user and the password respectively. You can leave it empty, if you don't want to print out any special message to the users."),
-      '#default_value' => $shield_config->get('print'),
-    ];
-
-    $form['general']['debug_header'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable debug header'),
-      '#description' => $this->t('Add a X-Shield-Status header in response to indicate if shield is disabled, skipped, enabled to ease debug.'),
-      '#default_value' => $shield_config->get('debug_header'),
-    ];
-
-    $form['general']['log_authentication'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Log successful authentications'),
-      '#description' => $this->t('Record a log entry with the user name, client IP address and requested path every time a visitor passes the Shield credentials prompt. Requests that skip Shield entirely (allowed paths, IP addresses, domains, HTTP methods or the command line) are not logged.'),
-      '#default_value' => $shield_config->get('log_authentication'),
-    ];
-
-    $form['credentials'] = [
-      '#id' => 'credentials',
-      '#type' => 'details',
-      '#title' => $this->t('Credentials'),
-      '#open' => TRUE,
-    ];
-
-    $credential_provider = $shield_config->get('credential_provider');
-    if ($form_state->hasValue(['credentials', 'credential_provider'])) {
-      $credential_provider = $form_state->getValue([
-        'credentials',
-        'credential_provider',
-      ]);
-    }
-
-    $form['credentials']['credential_provider'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Credential provider'),
-      '#options' => [
-        'shield' => $this->t('Shield'),
-      ],
-      '#default_value' => $credential_provider,
-      '#ajax' => [
-        'callback' => [$this, 'ajaxCallback'],
-        'wrapper' => 'credentials_configuration',
-        'method' => 'replaceWith',
-        'effect' => 'fade',
-      ],
-    ];
-
-    $form['credentials']['providers'] = [
-      '#type' => 'item',
-      '#id' => 'credentials_configuration',
-    ];
-
-    if ($this->keyTypeManager) {
-      $form['credentials']['credential_provider']['#options']['key'] = $this->t('Key Module');
-
-      if ($this->keyTypeManager->hasDefinition('user_password')) {
-        $form['credentials']['credential_provider']['#options']['multikey'] = $this->t('Key Module (user/password)');
-      }
-    }
-
-    if (($credential_provider == 'shield') or (!isset($credential_provider))) {
-      $form['credentials']['providers']['shield']['user'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('User'),
-        '#description' => $this->t('To accept more than one set of credentials, separate the usernames with a pipe (|), for example <em>user1|user2</em>, and list the matching passwords in the same order below. A username or password cannot itself contain a pipe.'),
-        '#default_value' => $shield_config->get('credentials.shield.user'),
-      ];
-      $form['credentials']['providers']['shield']['pass'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('Password'),
-        '#description' => $this->t('One password, or a pipe separated list holding one password for each username above, in the same order.'),
-        '#default_value' => $shield_config->get('credentials.shield.pass'),
-      ];
-    }
-    elseif ($credential_provider == 'key') {
-      $form['credentials']['providers']['key']['user'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('User'),
-        '#default_value' => $shield_config->get('credentials.key.user'),
-        '#required' => TRUE,
-      ];
-      $form['credentials']['providers']['key']['pass_key'] = [
-        '#type' => 'key_select',
-        '#title' => $this->t('Password'),
-        '#default_value' => $shield_config->get('credentials.key.pass_key'),
-        '#empty_option' => $this->t('- Please select -'),
-        '#key_filters' => ['type' => 'authentication'],
-        '#required' => TRUE,
-      ];
-    }
-    elseif ($credential_provider == 'multikey') {
-      $form['credentials']['providers']['multikey']['user_pass_key'] = [
-        '#type' => 'key_select',
-        '#title' => $this->t('User/password'),
-        '#default_value' => $shield_config->get('credentials.multikey.user_pass_key'),
-        '#empty_option' => $this->t('- Please select -'),
-        '#key_filters' => ['type' => 'user_password'],
-        '#required' => TRUE,
-      ];
-    }
-
-    $form['exceptions'] = [
-      '#id' => 'exceptions',
-      '#type' => 'details',
-      '#title' => $this->t('Exceptions'),
-      '#open' => TRUE,
-    ];
-
-    $form['exceptions']['shield_allow_cli'] = [
+    $form['allow_cli'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Allow command line access'),
-      '#description' => $this->t('When the site is accessed from command line (e.g. from Drush, cron), the shield should not work.'),
+      '#description' => $this->t('When the site is accessed from command line (e.g. from Drush, cron), Shield policies are not evaluated.'),
       '#default_value' => $shield_config->get('allow_cli'),
     ];
 
-    $form['exceptions']['allowlist'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('IP Allowlist'),
-      '#description' => $this->t("Enter list of IP's for which shield should not be shown, one per line. You can use Network ranges in the format 'IP/Range'.<br><strong>Warning:</strong> IP allowlists may not be compatible with reverse proxy caching. If reverse proxy caching is in use ensure that it correctly respects Cache-Control headers set by the origin server."),
-      '#default_value' => $shield_config->get('allowlist'),
-      '#placeholder' => $this->t("Example:\n192.168.0.1/24\n127.0.0.1\n2001:0db8:0000:0000:0000:8a2e:0370:7334\n2001:db8::8a2e:370:7334"),
+    $form['debug_header'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable debug header'),
+      '#description' => $this->t('Add X-Shield-Status and X-Shield-Policy-Name headers in response to indicate the outcome of Shield evaluation and, when a policy governed the request, its machine name, to ease debugging.'),
+      '#default_value' => $shield_config->get('debug_header'),
     ];
 
-    $form['exceptions']['http_method_allowlist'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('HTTP method allowlist'),
-      '#description' => $this->t('Select the HTTP methods for which shield should not be shown.'),
-      '#options' => [
-        'get' => $this->t('GET'),
-        'post' => $this->t('POST'),
-        'delete' => $this->t('DELETE'),
-        'head' => $this->t('HEAD'),
-        'put' => $this->t('PUT'),
-        'connect' => $this->t('CONNECT'),
-        'options' => $this->t('OPTIONS'),
-        'trace' => $this->t('TRACE'),
-        'patch' => $this->t('PATCH'),
-      ],
-      '#default_value' => $shield_config->get('http_method_allowlist') ?? [],
-    ];
-
-    $form['exceptions']['domains'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Domains'),
-      '#description' => $this->t('According to the Shield domain method selected below, these domain host names will be either excluded from, or included in Shield protection. Leave this blank to protect every domain. An empty list combined with "include" is not accepted, and leaves every domain protected.'),
-    ];
-    $form['exceptions']['domains']['shield_domains_method'] = [
-      '#type' => 'radios',
-      '#title' => $this->t('Domain Method'),
-      '#default_value' => $shield_config->get('domains_method') ?? ShieldMiddleware::EXCLUDE_METHOD,
-      '#options' => [
-        ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'),
-        ShieldMiddleware::INCLUDE_METHOD => $this->t('Include'),
-      ],
-    ];
-    $form['exceptions']['domains']['shield_domains'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Domains'),
-      '#description' => $this->t('Enter list of domain host names, one per line. The <em>*</em> wildcard is supported.'),
-      '#default_value' => $shield_config->get('domains'),
-      '#placeholder' => $this->t("Example:\nexample.com\ndomain.in"),
-    ];
-
-    $form['exceptions']['user_agents'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('User agent allowlist'),
-      '#description' => $this->t("Enter a list of user agent strings for which shield should not be shown, one per line. A request is allowed through when its user agent contains one of these strings, matched case-insensitively.<br><em>Warning: the user agent is sent by the client and can be set to any value. @strong_style_tag Anyone can bypass the shield by claiming one of these user agents, so only use this for convenience, never as a security measure.</strong></em>", [
-        '@strong_style_tag' => Markup::create("<strong style='color:red'>"),
-      ]),
-      '#default_value' => $shield_config->get('user_agents'),
-      '#placeholder' => $this->t("Example:\nfacebookexternalhit\nTwitterbot"),
-    ];
-
-    $form['exceptions']['paths'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Paths'),
-      '#description' => $this->t('According to the Shield path method selected above, these paths will be either excluded from, or included in Shield protection. Leave this blank and select "exclude" to protect all paths. Include a leading slash. Paths are matched against the requested URL, so enter the alias a visitor sees rather than an internal path. An asterisk matches any number of characters and %front matches the site root. An empty list combined with "include" would leave every path unprotected, so it is not accepted.', ['%front' => '<front>']),
-    ];
-    $form['exceptions']['paths']['shield_method'] = [
-      '#type' => 'radios',
-      '#title' => $this->t('Path Method'),
-      '#default_value' => $shield_config->get('method'),
-      '#options' => [
-        ShieldMiddleware::EXCLUDE_METHOD => $this->t('Exclude'),
-        ShieldMiddleware::INCLUDE_METHOD => $this->t('Include'),
-      ],
-    ];
-    $form['exceptions']['paths']['shield_paths'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Paths'),
-      '#default_value' => $shield_config->get('paths'),
+    $form['log_authentication'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Log successful authentications'),
+      '#description' => $this->t('Record a log entry with the user name, client IP address and requested path every time a visitor passes a Shield policy credentials prompt.'),
+      '#default_value' => $shield_config->get('log_authentication'),
     ];
 
     if ($this->moduleHandler->moduleExists('basic_auth')) {
-      $form['exceptions']['basic_auth_bypass'] = [
+      $form['basic_auth_bypass'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Allow HTTP basic authentication'),
-        '#description' => $this->t('Let a request pass Shield when it carries the user name and password of an active Drupal account, instead of the Shield credentials. Intended for REST and other web service clients, which can only send one set of credentials. The credentials are verified by the HTTP Basic Authentication module, so the usual flood control and blocked account rules apply. <strong>Every account on the site can open the shield when this is enabled, so it is only as strong as the weakest user password.</strong>'),
+        '#description' => $this->t('Let a request pass every Shield policy when it carries the user name and password of an active Drupal account, instead of the policy credentials. Intended for REST and other web service clients, which can only send one set of credentials. The credentials are verified by the HTTP Basic Authentication module, so the usual flood control and blocked account rules apply. <strong>Every account on the site can open the shield when this is enabled, so it is only as strong as the weakest user password.</strong>'),
         '#default_value' => $shield_config->get('basic_auth_bypass'),
+      ];
+
+      $form['unset_basic_auth_headers'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Unset basic_auth headers'),
+        '#description' => $this->t('Remove the PHP_AUTH_USER and PHP_AUTH_PW headers from requests that pass Shield, to avoid conflicts with the HTTP Basic Authentication module.'),
+        '#default_value' => $shield_config->get('unset_basic_auth_headers'),
       ];
     }
 
@@ -316,170 +115,23 @@ class ShieldSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
-    parent::validateForm($form, $form_state);
-
-    // "Include" means Shield only protects the listed paths, so an empty list
-    // protects nothing at all. Saving that leaves the site wide open while the
-    // settings still report Shield as enabled.
-    // @see https://www.drupal.org/project/shield/issues/3491255
-    $method = $form_state->getValue(['exceptions', 'paths', 'shield_method']);
-    $paths = $form_state->getValue(['exceptions', 'paths', 'shield_paths']);
-    if ((int) $method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $paths) === '') {
-      $form_state->setError($form['exceptions']['paths']['shield_paths'], $this->t('Enter at least one path to include, or select "Exclude" to protect the whole site. Including an empty list of paths would disable Shield everywhere.'));
-    }
-
-    // Including an empty list of domains means the same thing: there is no
-    // domain left for Shield to protect.
-    $domains_method = $form_state->getValue([
-      'exceptions',
-      'domains',
-      'shield_domains_method',
-    ]);
-    $domains = $form_state->getValue([
-      'exceptions',
-      'domains',
-      'shield_domains',
-    ]);
-    if ((int) $domains_method === ShieldMiddleware::INCLUDE_METHOD && trim((string) $domains) === '') {
-      $form_state->setError($form['exceptions']['domains']['shield_domains'], $this->t('Enter at least one domain to include, or select "Exclude" to protect every domain.'));
-    }
-
-    $credential_provider = $form_state->getValue([
-      'credentials',
-      'credential_provider',
-    ]);
-    if ($credential_provider !== 'shield') {
-      return;
-    }
-
-    $users = explode('|', (string) $form_state->getValue([
-      'credentials',
-      'providers',
-      'shield',
-      'user',
-    ]));
-    $passwords = explode('|', (string) $form_state->getValue([
-      'credentials',
-      'providers',
-      'shield',
-      'pass',
-    ]));
-
-    if (count($users) !== count($passwords)) {
-      $form_state->setErrorByName('credentials][providers][shield][pass', $this->t('@user_count usernames were given but @pass_count passwords. Each username needs exactly one password, in the same order.', [
-        '@user_count' => count($users),
-        '@pass_count' => count($passwords),
-      ]));
-      return;
-    }
-
-    // Only meaningful once more than one pair is configured; a single blank
-    // pair is the shipped default and stays the module's own concern.
-    if (count($users) === 1) {
-      return;
-    }
-
-    if (in_array('', $users, TRUE)) {
-      $form_state->setErrorByName('credentials][providers][shield][user', $this->t('Usernames cannot be empty.'));
-    }
-    elseif (count(array_unique($users)) !== count($users)) {
-      $form_state->setErrorByName('credentials][providers][shield][user', $this->t('Each username can only be listed once.'));
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $shield_config = $this->config('shield.settings');
-    $credential_provider = $form_state->getValue([
-      'credentials',
-      'credential_provider',
-    ]);
-    $http_method_allowlist = array_filter($form_state->getValue([
-      'exceptions',
-      'http_method_allowlist',
-    ]));
 
     $shield_config
-      ->set('shield_enable', $form_state->getValue([
-        'general',
-        'shield_enable',
-      ]))
-      ->set('print', $form_state->getValue([
-        'general',
-        'shield_print',
-      ]))
-      ->set('debug_header', $form_state->getValue([
-        'general',
-        'debug_header',
-      ]))
-      ->set('log_authentication', $form_state->getValue([
-        'general',
-        'log_authentication',
-      ]))
-      ->set('allow_cli', $form_state->getValue([
-        'exceptions',
-        'shield_allow_cli',
-      ]))
-      ->set('allowlist', $form_state->getValue([
-        'exceptions',
-        'allowlist',
-      ]))
-      ->set('http_method_allowlist', $http_method_allowlist)
-      ->set('domains', $form_state->getValue([
-        'exceptions',
-        'domains',
-        'shield_domains',
-      ]))
-      ->set('domains_method', $form_state->getValue([
-        'exceptions',
-        'domains',
-        'shield_domains_method',
-      ]))
-      ->set('method', $form_state->getValue([
-        'exceptions',
-        'paths',
-        'shield_method',
-      ]))
-      ->set('paths', $form_state->getValue([
-        'exceptions',
-        'paths',
-        'shield_paths',
-      ]))
-      ->set('user_agents', $form_state->getValue([
-        'exceptions',
-        'user_agents',
-      ]))
-      ->set('credential_provider', $credential_provider);
-    // The checkbox is only built when basic_auth is installed; leave the
-    // stored value alone otherwise.
+      ->set('allow_cli', $form_state->getValue('allow_cli'))
+      ->set('debug_header', $form_state->getValue('debug_header'))
+      ->set('log_authentication', $form_state->getValue('log_authentication'));
+
     if ($this->moduleHandler->moduleExists('basic_auth')) {
-      $shield_config->set('basic_auth_bypass', $form_state->getValue([
-        'exceptions',
-        'basic_auth_bypass',
-      ]));
+      $shield_config
+        ->set('basic_auth_bypass', $form_state->getValue('basic_auth_bypass'))
+        ->set('unset_basic_auth_headers', $form_state->getValue('unset_basic_auth_headers'));
     }
-    $credentials = $form_state->getValue([
-      'credentials',
-      'providers',
-      $credential_provider,
-    ]);
-    $shield_config->set('credentials', [$credential_provider => $credentials]);
+
     $shield_config->save();
 
     parent::submitForm($form, $form_state);
-  }
-
-  /**
-   * Ajax callback for the credential dependent configuration options.
-   *
-   * @return array
-   *   The form element containing the configuration options.
-   */
-  public static function ajaxCallback($form, FormStateInterface $form_state) {
-    return $form['credentials']['providers'];
   }
 
 }

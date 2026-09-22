@@ -1,21 +1,24 @@
 services:
-  shield.middleware:
-    class: Drupal\shield\ShieldMiddleware
-    arguments:
-      - '@config.factory'
-      - '@entity_type.manager'
-      - '@module_handler'
-      - '@request_stack'
-      - '@logger.channel.shield'
-    tags:
-      # Ensure to come before page caching, so you don't serve cached pages to
-      # banned users.
-      - { name: http_middleware, priority: 250 }
+  plugin.manager.shield.condition:
+    class: Drupal\shield\ShieldConditionPluginManager
+    parent: default_plugin_manager
+
+  plugin.manager.shield.credential_provider:
+    class: Drupal\shield\ShieldCredentialProviderPluginManager
+    parent: default_plugin_manager
+
   logger.channel.shield:
     parent: logger.channel_base
     arguments: ['shield']
+
   shield.response_subscriber:
-    class: Drupal\shield\EventSubscriber\ShieldSubscriber
+    class: Drupal\shield\EventSubscriber\ShieldResponseSubscriber
     arguments: ['@config.factory']
+    tags:
+      - { name: event_subscriber }
+
+  shield.policy_subscriber:
+    class: Drupal\shield\EventSubscriber\ShieldPolicySubscriber
+    arguments: ['@entity_type.manager', '@config.factory', '@logger.channel.shield', '@module_handler', '@page_cache_kill_switch', '@request_stack']
     tags:
       - { name: event_subscriber }

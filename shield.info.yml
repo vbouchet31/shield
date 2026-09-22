@@ -4,7 +4,5 @@ package: 'Administration'
 
 type: module
 core_version_requirement: ^9.2 || ^10 || ^11
-dependencies:
-  - drupal:path_alias
 
-configure: shield.settings
+configure: shield.admin_index
