@@ -50,7 +50,7 @@ abstract class ShieldConditionBase extends PluginBase implements DependentPlugin
    * {@inheritdoc}
    */
   public function affectsCacheability() {
-    return FALSE;
+    return $this->pluginDefinition['cacheKeyAware'] ?? FALSE;
   }
 
   /**

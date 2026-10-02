@@ -19,6 +19,9 @@ use Symfony\Component\HttpFoundation\Request;
 #[ShieldCondition(
   id: 'path',
   title: new TranslatableMarkup('Path'),
+  // The URI is part of PageCache::getCacheId(), so a path match may safely
+  // gate the kill-switch sweep - see ShieldCondition::$cacheKeyAware.
+  cacheKeyAware: TRUE,
   description: new TranslatableMarkup('Match the request against a list of path patterns.'),
 )]
 class Path extends ShieldConditionBase implements ContainerFactoryPluginInterface {
@@ -63,16 +66,6 @@ class Path extends ShieldConditionBase implements ContainerFactoryPluginInterfac
       $container->get('path_alias.manager'),
       $container->get('config.factory'),
     );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function affectsCacheability() {
-    // A path match narrows a policy to a subset of requests, so a response
-    // served under it can never be safe for the page cache to reuse for a
-    // request outside that subset - see ShieldConditionInterface.
-    return TRUE;
   }
 
   /**

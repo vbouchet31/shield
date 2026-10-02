@@ -4,6 +4,9 @@ shield.settings:
   type: config_object
   label: 'Shield settings'
   mapping:
+    shield_enable:
+      type: boolean
+      label: 'Enable Shield'
     allow_cli:
       type: boolean
       label: 'CLI bypass'

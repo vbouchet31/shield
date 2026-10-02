@@ -1,0 +1,7 @@
+shield.condition.plugin.user_agent:
+  type: shield.condition.plugin.*
+  label: 'User agent'
+  mapping:
+    user_agents:
+      type: text
+      label: 'User agents'

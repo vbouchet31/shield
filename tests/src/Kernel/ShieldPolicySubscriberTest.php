@@ -280,6 +280,36 @@ class ShieldPolicySubscriberTest extends KernelTestBase {
   }
 
   /**
+   * Tests that the global switch overrides every policy when off.
+   *
+   * @covers ::onRequest
+   */
+  public function testGlobalSwitchOffSkipsAllPolicies(): void {
+    $this->config('shield.settings')->set('shield_enable', FALSE)->save();
+
+    $event = $this->dispatchRequest(Request::create('/'));
+    $this->assertNull($event->getResponse());
+    $this->assertSame('skipped (shield disabled)', $event->getRequest()->attributes->get('_shield_status'));
+  }
+
+  /**
+   * Tests that policy evaluation is unchanged when the global switch is on.
+   *
+   * @covers ::onRequest
+   */
+  public function testGlobalSwitchOnPreservesExistingBehavior(): void {
+    $this->config('shield.settings')->set('shield_enable', TRUE)->save();
+
+    $event = $this->dispatchRequest(Request::create('/'));
+    $this->assertNotNull($event->getResponse());
+    $this->assertSame(401, $event->getResponse()->getStatusCode());
+
+    $event = $this->dispatchRequest($this->createAuthenticatedRequest('user', 'password'));
+    $this->assertNull($event->getResponse());
+    $this->assertSame('authenticated', $event->getRequest()->attributes->get('_shield_status'));
+  }
+
+  /**
    * Tests that a subrequest is never challenged.
    *
    * @covers ::onRequest

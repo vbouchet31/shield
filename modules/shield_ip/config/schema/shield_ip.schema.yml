@@ -1,0 +1,7 @@
+shield.condition.plugin.ip:
+  type: shield.condition.plugin.*
+  label: 'IP'
+  mapping:
+    ips:
+      type: text
+      label: 'IPs'

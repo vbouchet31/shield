@@ -1,0 +1,7 @@
+shield.condition.plugin.domain:
+  type: shield.condition.plugin.*
+  label: 'Domain'
+  mapping:
+    domains:
+      type: text
+      label: 'Domains'

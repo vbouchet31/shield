@@ -1,3 +1,4 @@
+shield_enable: true
 allow_cli: true
 debug_header: false
 log_authentication: false

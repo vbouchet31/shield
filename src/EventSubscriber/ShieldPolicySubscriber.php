@@ -82,6 +82,15 @@ class ShieldPolicySubscriber implements EventSubscriberInterface {
       return;
     }
 
+    // The master switch: when off, no policy is evaluated at all, regardless
+    // of its own status. Checked first so that nothing below it - the kill
+    // switch included - ever runs while Shield is globally disabled.
+    if (!$config->get('shield_enable')) {
+      $request->attributes->set('_shield_status', 'skipped (shield disabled)');
+      $this->passThrough($request);
+      return;
+    }
+
     if (PHP_SAPI === 'cli' && $config->get('allow_cli')) {
       $request->attributes->set('_shield_status', 'skipped (cli)');
       $this->passThrough($request);
@@ -120,7 +129,6 @@ class ShieldPolicySubscriber implements EventSubscriberInterface {
     // make this response unsafe to cache.
     foreach ($policies as $policy) {
       if ($policy->matchesCacheableConditions($request)) {
-        echo 'Cacheable conditions matched for policy: ' . $policy->id() . PHP_EOL;
         $this->killSwitch->trigger();
         break;
       }
@@ -143,15 +151,6 @@ class ShieldPolicySubscriber implements EventSubscriberInterface {
     }
     $request->attributes->set('_shield_policy', $governing->id());
 
-    // To be reviewed.
-    if ($config->get('basic_auth_bypass')
-      && $this->moduleHandler->moduleExists('basic_auth')
-      && $this->basicAuthRequestAuthenticate($request)) {
-      $request->attributes->set('_shield_status', 'skipped (basic auth)');
-      $this->passThrough($request);
-      return;
-    }
-
     $input = $this->getRequestCredentials($request);
     if ($input !== NULL && $governing->checkCredentials($input[0], $input[1])) {
       $request->attributes->set('_shield_status', 'authenticated');
@@ -162,6 +161,21 @@ class ShieldPolicySubscriber implements EventSubscriberInterface {
           '%path' => $request->getPathInfo(),
         ]);
       }
+      $this->passThrough($request);
+      return;
+    }
+
+    // Let a request through that carries the credentials of a Drupal
+    // account, if the site opted in. Core's basic_auth provider performs the
+    // check, so flood control, blocked accounts and password hashing are all
+    // handled there rather than reimplemented here. Checked only after the
+    // governing policy's own credentials have already failed to match, so a
+    // request presenting valid Shield credentials never pays for a
+    // basic_auth attempt.
+    if ($config->get('basic_auth_bypass')
+      && $this->moduleHandler->moduleExists('basic_auth')
+      && $this->basicAuthRequestAuthenticate($request)) {
+      $request->attributes->set('_shield_status', 'skipped (basic auth)');
       $this->passThrough($request);
       return;
     }

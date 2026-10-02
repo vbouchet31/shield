@@ -61,14 +61,14 @@ interface ShieldConditionInterface extends PluginInspectionInterface, Configurab
   public function isNegated();
 
   /**
-   * Determines whether this condition affects the request's cacheability.
+   * Determines whether this condition may gate the page-cache kill switch.
    *
-   * Conditions that scope a policy to a subset of requests (e.g. Path) must
-   * return TRUE: whenever such a condition matches, the response cannot
-   * safely be stored in the page cache, because the page cache key has no
-   * knowledge of the Authorization header. Conditions that only narrow an
-   * already-scoped policy without being cache-relevant on their own (e.g.
-   * HTTP method) should return FALSE.
+   * ShieldPolicy::matchesCacheableConditions() ANDs together every condition
+   * on a policy for which this returns TRUE, to decide whether the page
+   * cache kill switch must fire for the current request. Defaults to
+   * reflecting the plugin's \Drupal\shield\Attribute\ShieldCondition
+   * `cacheKeyAware` property - see that attribute's docblock for the
+   * operational rule condition plugins must follow.
    *
    * @return bool
    *   TRUE if the condition affects cacheability, FALSE otherwise.

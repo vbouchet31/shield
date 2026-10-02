@@ -72,6 +72,13 @@ class ShieldSettingsForm extends ConfigFormBase {
       ]),
     ];
 
+    $form['shield_enable'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Shield'),
+      '#description' => $this->t('Enable or disable Shield entirely. When disabled, no policy is evaluated regardless of its own status.'),
+      '#default_value' => $shield_config->get('shield_enable'),
+    ];
+
     $form['allow_cli'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Allow command line access'),
@@ -119,6 +126,7 @@ class ShieldSettingsForm extends ConfigFormBase {
     $shield_config = $this->config('shield.settings');
 
     $shield_config
+      ->set('shield_enable', $form_state->getValue('shield_enable'))
       ->set('allow_cli', $form_state->getValue('allow_cli'))
       ->set('debug_header', $form_state->getValue('debug_header'))
       ->set('log_authentication', $form_state->getValue('log_authentication'));

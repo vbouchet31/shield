@@ -1,0 +1,7 @@
+shield.credential_provider.plugin.multikey:
+  type: shield.credential_provider.plugin.*
+  label: 'Key (user/password)'
+  mapping:
+    user_pass_key:
+      type: string
+      label: 'User/password key'

@@ -36,6 +36,7 @@ class ShieldKillSwitchTest extends KernelTestBase {
     'shield_http_method',
     'shield_password',
     'shield_path',
+    'shield_user_agent',
     'system',
     'user',
   ];
@@ -112,6 +113,50 @@ class ShieldKillSwitchTest extends KernelTestBase {
     // whether one of them governs this particular request.
     $event = $this->dispatchRequest(Request::create('/', 'GET'));
     $this->assertNull($event->getResponse());
+    $this->assertKillSwitchTriggered();
+  }
+
+  /**
+   * Tests that a non-cache-key-aware condition never vetoes the kill switch.
+   *
+   * Regression test: a policy scoped by Path (cache-key-aware, gates the
+   * sweep) AND User agent (not cache-key-aware, must not gate the sweep).
+   * A request under the protected path whose User-Agent does *not* match
+   * the configured list must still trigger the kill switch, because Path
+   * alone already puts the request in scope - the request cannot be
+   * assumed cacheable just because it happens to fail the User agent
+   * condition, or a later request with a listed user agent could be served
+   * this one's cached response unchallenged.
+   *
+   * @covers ::onRequest
+   */
+  public function testKillSwitchFiresRegardlessOfNonCacheKeyAwareCondition(): void {
+    ShieldPolicy::create([
+      'id' => 'test_policy',
+      'label' => 'Test policy',
+      'status' => TRUE,
+      'conditions' => [
+        ['id' => 'path', 'paths' => '/admin'],
+        ['id' => 'user_agent', 'user_agents' => 'Chrome/15'],
+      ],
+      'credential_providers' => [
+        ['id' => 'password', 'users' => ['user'], 'passwords' => ['password']],
+      ],
+    ])->save();
+
+    // The request's User-Agent does not match "Chrome/15", so the User
+    // agent condition fails and the policy does not govern this request at
+    // all (matchesConditions() ANDs every condition, Path AND User agent) -
+    // the request passes through unchallenged. But it is still within the
+    // policy's Path scope, so the sweep must kill the page cache: this is
+    // exactly the reported bug, where an unchallenged response like this
+    // one got cached and was then served to a later request that should
+    // have been challenged.
+    $event = $this->dispatchRequest(Request::create('/admin', 'GET', [], [], [], [
+      'HTTP_USER_AGENT' => 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+    ]));
+    $this->assertNull($event->getResponse());
+    $this->assertSame('skipped (no matching policy)', $event->getRequest()->attributes->get('_shield_status'));
     $this->assertKillSwitchTriggered();
   }
 

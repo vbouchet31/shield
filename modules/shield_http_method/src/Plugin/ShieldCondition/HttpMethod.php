@@ -14,6 +14,10 @@ use Symfony\Component\HttpFoundation\Request;
 #[ShieldCondition(
   id: 'http_method',
   title: new TranslatableMarkup('HTTP method'),
+  // The HTTP method is not part of PageCache::getCacheId(), so this
+  // condition must never gate the kill-switch sweep - see
+  // ShieldCondition::$cacheKeyAware.
+  cacheKeyAware: FALSE,
   description: new TranslatableMarkup('Match the request against a list of HTTP methods.'),
 )]
 class HttpMethod extends ShieldConditionBase {

@@ -1,0 +1,7 @@
+name: 'Shield: User agent'
+description: 'Provides a User agent condition for Shield policies.'
+package: 'Administration'
+type: module
+core_version_requirement: ^9.2 || ^10 || ^11
+dependencies:
+  - shield:shield
